@@ -12,4 +12,5 @@ Feature Requests:
 - [ ] the project should have frontend tests
 
 Bugs:
+- [x] the debug logs are always shown regardless of flag existence
 - [ ] the stalled button is sometimes incorrectly shown

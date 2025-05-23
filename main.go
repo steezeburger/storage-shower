@@ -273,8 +273,10 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 
 		// Always save result, even if it's partial
 		// Ensure result has correct size data
-		log.Printf("DEBUG: Before saving, root size is %d bytes with %d children", 
-			result.Size, len(result.Children))
+		if debugMode {
+			log.Printf("DEBUG: Before saving, root size is %d bytes with %d children", 
+				result.Size, len(result.Children))
+		}
 		
 		// Log the top-level directories/files and their sizes
 		if debugMode {
@@ -619,7 +621,9 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 				// Size should already be set in the struct initialization, but double-check
 				if fileInfo.Size <= 0 {
 					fileInfo.Size = info.Size()
-					log.Printf("DEBUG: Set file size for %s to %d bytes", fileInfo.Path, fileInfo.Size)
+					if debugMode {
+						log.Printf("DEBUG: Set file size for %s to %d bytes", fileInfo.Path, fileInfo.Size)
+					}
 				}
 				fileInfo.Extension = strings.TrimPrefix(filepath.Ext(entryPath), ".")
 
