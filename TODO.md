@@ -1,0 +1,7 @@
+- [x] i want to click the filepath on frontend to copy the full path to my clipboard
+- [ ] i want to see previous runs in the frontend underneath my current run
+- [ ] i do not want to ignore hidden files by default
+- [ ] i want the browse button to open up a file explorer so i can select a directory
+- [ ] the project should have a linter
+- [ ] the project should have backend tests
+- [ ] the project should have frontend tests

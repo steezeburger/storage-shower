@@ -73,6 +73,9 @@ function init() {
 
     console.log('Event listeners attached');
 
+    // Add click event for copying file path
+    selectedPathText.addEventListener('click', copyPathToClipboard);
+
     // Get home directory on load
     setHomeDirectory();
 }
@@ -304,7 +307,7 @@ function renderTreemap(data) {
             return d.size > 0 ? d.size : 0; // Ensure we use all sizes, not just files
         })
         .sort((a, b) => b.value - a.value);
-    
+
     console.log('Hierarchy after sum:', hierarchy);
 
     // If we're navigating to a subdirectory, filter the data
@@ -464,6 +467,7 @@ function renderSunburst(data) {
 // Update the details panel with information about the selected item
 function updateDetailsPanel(item) {
     selectedPathText.textContent = item.path;
+    selectedPathText.title = "Click to copy path to clipboard";
     selectedSizeText.textContent = formatBytes(item.size);
 
     if (item.isDir) {
@@ -526,8 +530,7 @@ function getFileTypeColor(extension) {
 
 // Format bytes to human-readable format
 function formatBytes(bytes, decimals = 2) {
-    console.log('Formatting bytes:', bytes);
-    if (!bytes || bytes === 0) return '0 Bytes';
+    if (bytes === 0) return '0 Bytes';
 
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
@@ -536,6 +539,22 @@ function formatBytes(bytes, decimals = 2) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+function copyPathToClipboard() {
+    if (selectedPathText.textContent && selectedPathText.textContent !== 'No item selected') {
+        navigator.clipboard.writeText(selectedPathText.textContent)
+            .then(() => {
+                // Visual feedback
+                selectedPathText.classList.add('copied');
+                setTimeout(() => {
+                    selectedPathText.classList.remove('copied');
+                }, 1500);
+            })
+            .catch(err => {
+                console.error('Could not copy text: ', err);
+            });
+    }
 }
 
 // Mock data generation for testing
