@@ -77,50 +77,46 @@ bundle app_name="Storage Shower" app_version="1.0.0" app_identifier="com.example
     GOOS=darwin GOARCH=amd64 go build -o "$APP_BUNDLE/Contents/MacOS/storage-shower" main.go
 
     # Generate Info.plist
-    cat > "$APP_BUNDLE/Contents/Info.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>
-    <string>storage-shower</string>
-    <key>CFBundleIdentifier</key>
-    <string>{{app_identifier}}</string>
-    <key>CFBundleName</key>
-    <string>{{app_name}}</string>
-    <key>CFBundleDisplayName</key>
-    <string>{{app_name}}</string>
-    <key>CFBundleVersion</key>
-    <string>{{app_version}}</string>
-    <key>CFBundleShortVersionString</key>
-    <string>{{app_version}}</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSHumanReadableCopyright</key>
-    <string>Copyright © 2023</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>10.13</string>
-    <key>LSApplicationCategoryType</key>
-    <string>public.app-category.utilities</string>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-    </dict>
-</dict>
-</plist>
-EOF
+    echo '<?xml version="1.0" encoding="UTF-8"?>' > "$APP_BUNDLE/Contents/Info.plist"
+    echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '<plist version="1.0">' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '<dict>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundleExecutable</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>storage-shower</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundleIdentifier</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>{{app_identifier}}</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundleName</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>{{app_name}}</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundleDisplayName</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>{{app_name}}</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundleVersion</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>{{app_version}}</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundleShortVersionString</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>{{app_version}}</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundleInfoDictionaryVersion</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>6.0</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>CFBundlePackageType</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>APPL</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>NSHighResolutionCapable</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <true/>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>NSHumanReadableCopyright</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>Copyright © 2023</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>LSMinimumSystemVersion</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>10.13</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>LSApplicationCategoryType</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <string>public.app-category.utilities</string>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <key>NSAppTransportSecurity</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    <dict>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '        <key>NSAllowsLocalNetworking</key>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '        <true/>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '    </dict>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '</dict>' >> "$APP_BUNDLE/Contents/Info.plist"
+    echo '</plist>' >> "$APP_BUNDLE/Contents/Info.plist"
 
     # Create a simple launcher script that wraps the binary
-    cat > "$APP_BUNDLE/Contents/MacOS/launcher" << EOF
-#!/bin/bash
-cd "\$(dirname "\$0")"
-exec ./storage-shower
-EOF
+    echo '#!/bin/bash' > "$APP_BUNDLE/Contents/MacOS/launcher"
+    echo 'cd "$(dirname "$0")"' >> "$APP_BUNDLE/Contents/MacOS/launcher"
+    echo 'exec ./storage-shower' >> "$APP_BUNDLE/Contents/MacOS/launcher"
 
     # Set permissions
     echo "Setting permissions..."
