@@ -959,6 +959,10 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 
 func isHidden(path string) bool {
 	name := filepath.Base(path)
+	// Only consider a file hidden if it starts with a dot and isn't a directory ending with /
+	if strings.HasSuffix(path, "/") || strings.HasSuffix(path, "\\") {
+		return false
+	}
 	return strings.HasPrefix(name, ".") && name != "." && name != ".."
 }
 
