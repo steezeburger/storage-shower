@@ -11,7 +11,7 @@
     "lint-html": "htmlhint \"*.html\"",
     "lint-css": "stylelint \"*.css\"",
     "lint-css:fix": "stylelint --fix \"*.css\"",
-    "test": "jest --config frontend/jest.config.js"
+    "test": "jest --config jest.config.js"
   },
   "keywords": [
     "disk",

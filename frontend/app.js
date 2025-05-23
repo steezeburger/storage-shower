@@ -262,8 +262,7 @@ async function pollScanProgress() {
         const warningEl = document.createElement("div");
         warningEl.id = "stall-warning";
         warningEl.className = "stall-warning";
-        warningEl.innerHTML = 
-          `<p>The scan appears to be stalled processing large files or directories.</p>
+        warningEl.innerHTML = `<p>The scan appears to be stalled processing large files or directories.</p>
            <p>You can <button id="restart-scan-btn" class="btn btn-warning">Stop Scan</button> 
               or wait for it to complete.</p>`;
         progressContainer.appendChild(warningEl);
@@ -282,7 +281,7 @@ async function pollScanProgress() {
 async function stopScan() {
   try {
     await fetch("/api/scan/stop", { method: "POST" });
-    
+
     // Clear the progress interval
     if (progressInterval) {
       clearInterval(progressInterval);
@@ -874,7 +873,7 @@ async function fetchPreviousScans() {
 
     // Store scans in state
     previousScans = scans;
-    
+
     // Display the scans
     displayPreviousScans();
   } catch (error) {
