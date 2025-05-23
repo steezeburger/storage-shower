@@ -7,6 +7,7 @@ on:
 jobs:
   claude-code-review:
     runs-on: ubuntu-latest
+    environment: gh-actions
     permissions:
       contents: read
       pull-requests: write
@@ -26,3 +27,4 @@ jobs:
           direct_prompt: "Review the PR changes. Focus on code quality, potential bugs, and performance issues. Suggest improvements where appropriate. Be concise and specific."
           timeout_minutes: "30"
           allowed_tools: "Bash(git diff --name-only HEAD~1),Bash(git diff HEAD~1),View,GlobTool,GrepTool"
+
