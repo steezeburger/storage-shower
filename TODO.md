@@ -7,9 +7,11 @@ Feature Requests:
 - [x] i do not want to ignore hidden files by default
 - [x] i want the browse button to open up a file explorer so i can select a directory
 - [x] the project should have a code formatter. use defaults of the most popular formatter for the language.
-- [ ] the project should have a linter
+- [x] the project should have a linter
+- [ ] the projet should have a github action to check the formatting and run the linter
 - [ ] the project should have backend tests
 - [ ] the project should have frontend tests
+- [ ] the project should have a github action to run the tests
 
 Regressions:
 - [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?

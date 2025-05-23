@@ -4,7 +4,9 @@
   "description": "Disk space visualization tool",
   "main": "main.go",
   "scripts": {
-    "format": "./format.sh",
+    "format": "just format",
+    "lint": "just lint",
+    "lint:fix": "just lint-fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -17,6 +19,10 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "prettier": "^2.8.8"
+    "eslint": "^8.43.0",
+    "htmlhint": "^1.1.4",
+    "prettier": "^2.8.8",
+    "stylelint": "^15.10.1",
+    "stylelint-config-standard": "^34.0.0"
   }
 }
