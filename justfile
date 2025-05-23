@@ -10,9 +10,9 @@ format *args="":
     @(cd backend && go fmt ./...)
     @echo "Formatting frontend code..."
     @if [ "{{args}}" = "--check" ]; then \
-        cd frontend && npx prettier --check "*.{js,html,css}" "tests/**/*.{js,html,css}"; \
+        cd frontend && npm run format:check; \
     else \
-        cd frontend && npx prettier --write "*.{js,html,css}" "tests/**/*.{js,html,css}"; \
+        cd frontend && npm run format; \
     fi
 
 # Lint all code
@@ -26,24 +26,24 @@ lint-go:
 # Lint JavaScript
 lint-js:
     @echo "Linting JavaScript..."
-    @(cd frontend && npx eslint "*.js" "tests/**/*.js")
+    @(cd frontend && npm run lint)
 
 # Lint HTML
 lint-html:
     @echo "Linting HTML..."
-    @(cd frontend && npx htmlhint "*.html")
+    @(cd frontend && npm lint-html)
 
 # Lint CSS
 lint-css:
     @echo "Linting CSS..."
-    @(cd frontend && npx stylelint "*.css")
+    @(cd frontend && npm run lint-css)
 
 # Fix linting issues where possible
 lint-fix:
     @echo "Fixing JavaScript linting issues..."
-    @(cd frontend && npx eslint --fix "*.js" "tests/**/*.js")
+    @(cd frontend && npm run lint:fix)
     @echo "Fixing CSS linting issues..."
-    @(cd frontend && npx stylelint --fix "*.css")
+    @(cd frontend && npm run lint-css:fix)
 
 # Run the application
 run *args:
@@ -153,12 +153,11 @@ install-linters:
 
 # Run backend tests
 test-backend:
-    @echo "Running tests for backend directory..."
     @(cd backend && go test -v ./...)
 
 # Run frontend tests
 test-frontend:
-    @(cd frontend && npx jest --config jest.config.js)
+    @(cd frontend && npm run test)
 
 # Run all tests
 test: test-backend test-frontend

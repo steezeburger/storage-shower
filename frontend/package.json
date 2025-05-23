@@ -4,12 +4,14 @@
   "description": "Disk space visualization tool",
   "main": "main.go",
   "scripts": {
-    "format": "just format",
-    "lint": "just lint",
-    "lint:fix": "just lint-fix",
-    "test": "just test",
-    "test:frontend": "jest --config frontend/jest.config.js",
-    "test:backend": "go test -v ./..."
+    "format": "prettier --write \"*.{js,html,css}\" \"tests/**/*.{js,html,css}\"",
+    "format:check": "prettier --check \"*.{js,html,css}\" \"tests/**/*.{js,html,css}\"",
+    "lint": "eslint \"*.js\" \"tests/**/*.js\"",
+    "lint:fix": "eslint --fix \"*.js\" \"tests/**/*.js\"",
+    "lint-html":"htmlhint \"*.html\"",
+    "lint-css": "stylelint \"*.css\"",
+    "lint-css:fix": "stylelint --fix \"*.css\"",
+    "test": "jest --config frontend/jest.config.js"
   },
   "keywords": [
     "disk",
