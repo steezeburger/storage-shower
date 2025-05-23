@@ -14,9 +14,11 @@ format *args="":
     else \
         cd frontend && npm run format; \
     fi
+alias f := format
 
 # Lint all code
 lint: lint-go lint-js lint-html lint-css
+alias l := lint
 
 # Lint Go code
 lint-go:
@@ -161,6 +163,7 @@ test-frontend:
 
 # Run all tests
 test: test-backend test-frontend
+alias t := test
 
 # Validate code (format and lint)
 validate: format lint

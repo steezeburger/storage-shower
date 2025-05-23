@@ -5,7 +5,7 @@ const homeBtn = document.getElementById("home-btn");
 const scanBtn = document.getElementById("scan-btn");
 const stopBtn = document.getElementById("stop-btn");
 const ignoreHiddenCheckbox = document.getElementById("ignore-hidden");
-const vizTypeRadios = document.querySelectorAll("input[name=\"viz-type\"]");
+const vizTypeRadios = document.querySelectorAll('input[name="viz-type"]');
 const progressContainer = document.getElementById("progress-container");
 const progressBarFill = document.getElementById("progress-bar-fill");
 const scannedItemsText = document.getElementById("scanned-items");
@@ -398,8 +398,8 @@ function renderTreemap(data) {
   // Create a hierarchy from the data
   const hierarchy = d3
     .hierarchy(data)
-    .sum((d) => 
-      d.size > 0 ? d.size : 0 // Ensure we use all sizes, not just files
+    .sum(
+      (d) => (d.size > 0 ? d.size : 0) // Ensure we use all sizes, not just files
     )
     .sort((a, b) => b.value - a.value);
 
