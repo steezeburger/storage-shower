@@ -151,6 +151,17 @@ install-linters:
     @echo "Installing frontend linters (via npm)..."
     npm install --save-dev eslint htmlhint stylelint stylelint-config-standard
 
+# Run backend tests
+test-backend:
+    go test -v ./...
+
+# Run frontend tests
+test-frontend:
+    echo "Frontend tests not implemented yet"
+
+# Run all tests
+test: test-backend test-frontend
+
 # Validate code (format and lint)
 validate: format lint
 
