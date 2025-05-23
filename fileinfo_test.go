@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 	"path/filepath"
+	"strings"
 )
 
 func TestFileInfo_Size(t *testing.T) {
@@ -42,8 +43,18 @@ func TestFileInfo_Size(t *testing.T) {
 		},
 	}
 
+	// Create dirMap to help fixDirectorySizes function find subdirectories
+	dirMap := make(map[string]*FileInfo)
+	
+	// Add subdir to dirMap
+	for i := range root.Children {
+		if root.Children[i].IsDir {
+			dirMap[root.Children[i].Path] = &root.Children[i]
+		}
+	}
+	
 	// Fix directory sizes
-	fixDirectorySizes(&root, nil)
+	fixDirectorySizes(&root, dirMap)
 
 	// Test the root size (should be sum of all children)
 	expectedSize := int64(600) // 100 + 200 + 300
@@ -122,7 +133,7 @@ func TestFileExtension(t *testing.T) {
 		{"/test/file.txt", "txt"},
 		{"/test/file.tar.gz", "gz"},
 		{"/test/file", ""},
-		{"/test/.hidden", ""},
+		{"/test/.hidden", ""}, // Hidden files should have no extension
 		{"/test/image.jpg", "jpg"},
 		{"/test/script.sh", "sh"},
 	}
@@ -133,13 +144,18 @@ func TestFileExtension(t *testing.T) {
 			Path: test.path,
 		}
 		
-		// Extract extension using the same logic as in the main code
-		extension := ""
-		if ext := filepath.Ext(test.path); ext != "" {
-			extension = ext[1:] // Remove the leading dot
-		}
+		for _, test := range tests {
+			// Extract extension using the same logic as in the main code
+			extension := ""
+			// Skip extension extraction for hidden files
+			filename := filepath.Base(test.path)
+			if !strings.HasPrefix(filename, ".") || filename == "." || filename == ".." {
+				if ext := filepath.Ext(test.path); ext != "" {
+					extension = ext[1:] // Remove the leading dot
+				}
+			}
 		
-		if extension != test.expectedExt {
+			if extension != test.expectedExt {
 			t.Errorf("File extension for %s = %s, want %s", test.path, extension, test.expectedExt)
 		}
 	}
