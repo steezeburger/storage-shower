@@ -11,7 +11,7 @@ Feature Requests:
 - [x] move the build script logic to the justfile
 - [x] the projet should have a github action to check the formatting and run the linter
 - [x] the project should have backend tests
-- [ ] the project should have frontend tests
+- [x] the project should have frontend tests
 - [ ] the project should have a github action to run the tests
 
 Regressions:
