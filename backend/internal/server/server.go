@@ -17,7 +17,7 @@ import (
 // StartServer starts the HTTP server on port 8080
 func StartServer() int {
 	// Set up file server for frontend directory
-	fs := http.FileServer(http.Dir("../frontend"))
+	fs := http.FileServer(http.Dir("../"))
 
 	// Serve frontend files with explicit MIME types
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -30,12 +30,12 @@ func StartServer() int {
 	})
 
 	// Set specific MIME types for JavaScript and CSS
-	http.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/frontend/app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		http.ServeFile(w, r, "../frontend/app.js")
 	})
 
-	http.HandleFunc("/styles.css", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/frontend/styles.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
 		http.ServeFile(w, r, "../frontend/styles.css")
 	})
