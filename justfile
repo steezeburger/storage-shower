@@ -5,11 +5,15 @@ default:
     @just --list
 
 # Format all code
-format:
+format *args="":
     @echo "Formatting Go code..."
     go fmt ./...
     @echo "Formatting frontend code..."
-    npx prettier --write "frontend/**/*.{js,html,css}"
+    {{if args == "--check"}}
+        npx prettier --check "frontend/**/*.{js,html,css}"
+    {{else}}
+        npx prettier --write "frontend/**/*.{js,html,css}"
+    {{endif}}
 
 # Lint all code
 lint: lint-go lint-js lint-html lint-css
