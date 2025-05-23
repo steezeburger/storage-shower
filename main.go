@@ -93,7 +93,6 @@ func startServer() int {
 	http.HandleFunc("/api/scan/status", handleScanStatus)
 	http.HandleFunc("/api/scan/stop", handleScanStop)
 	http.HandleFunc("/api/home", handleHome)
-	http.HandleFunc("/api/browse", handleBrowse)
 	http.HandleFunc("/api/results", handleResults)
 	http.HandleFunc("/api/previous-scans", handlePreviousScans)
 
@@ -275,38 +274,38 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 		// Always save result, even if it's partial
 		// Ensure result has correct size data
 		if debugMode {
-			log.Printf("DEBUG: Before saving, root size is %d bytes with %d children", 
+			log.Printf("DEBUG: Before saving, root size is %d bytes with %d children",
 				result.Size, len(result.Children))
 		}
-		
+
 		// Log the top-level directories/files and their sizes
 		if debugMode {
 			for _, child := range result.Children {
-				log.Printf("DEBUG: Top-level item: %s, size: %d bytes, isDir: %v", 
+				log.Printf("DEBUG: Top-level item: %s, size: %d bytes, isDir: %v",
 					child.Name, child.Size, child.IsDir)
 			}
 		}
-		
+
 		// Save result to a temporary file
 		resultJSON, err := json.Marshal(result)
 		if err != nil {
 			log.Printf("Error marshaling result: %v", err)
 			return
 		}
-		
+
 		tempFile, err := os.CreateTemp("", "storage-shower-*.json")
 		if err != nil {
 			log.Printf("Error creating temp file: %v", err)
 			return
 		}
-		
+
 		_, err = tempFile.Write(resultJSON)
 		if err != nil {
 			log.Printf("Error writing to temp file: %v", err)
 			tempFile.Close()
 			return
 		}
-		
+
 		tempFile.Close()
 
 		scanMutex.Lock()
@@ -319,10 +318,10 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 			ResultID:  resultID,
 			Size:      result.Size,
 		}
-		
+
 		// Add the new scan at the beginning of the slice
 		previousScans = append([]ScanRecord{newScan}, previousScans...)
-		
+
 		// Limit the number of previous scans
 		if len(previousScans) > maxPreviousScans {
 			previousScans = previousScans[:maxPreviousScans]
@@ -412,12 +411,12 @@ func handleScanStop(w http.ResponseWriter, r *http.Request) {
 func handleResults(w http.ResponseWriter, r *http.Request) {
 	// Check if a specific result ID is requested
 	resultID := r.URL.Query().Get("id")
-	
+
 	scanMutex.Lock()
 	currentResultPath := resultPath
 	scans := previousScans
 	scanMutex.Unlock()
-	
+
 	// If a specific result ID is requested, find its path
 	if resultID != "" {
 		found := false
@@ -429,7 +428,7 @@ func handleResults(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		
+
 		if !found {
 			http.Error(w, "Requested scan result not found", http.StatusNotFound)
 			return
@@ -454,74 +453,9 @@ func handlePreviousScans(w http.ResponseWriter, r *http.Request) {
 	scanMutex.Lock()
 	scans := previousScans
 	scanMutex.Unlock()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(scans)
-}
-
-// handleBrowse opens a native file dialog and returns the selected directory
-func handleBrowse(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var selectedPath string
-	var err error
-
-	switch runtime.GOOS {
-	case "darwin":
-		// Use AppleScript to open a folder selection dialog
-		cmd := exec.Command("osascript", "-e", `choose folder with prompt "Select a directory to scan"`)
-		output, err := cmd.Output()
-		if err == nil {
-			// AppleScript returns something like 'alias Macintosh HD:Users:username:Documents:'
-			// Convert it to a regular path
-			selectedPath = strings.TrimSpace(string(output))
-			// Remove 'alias ' prefix if present
-			selectedPath = strings.TrimPrefix(selectedPath, "alias ")
-			// Convert to POSIX path
-			cmd = exec.Command("osascript", "-e", fmt.Sprintf(`POSIX path of "%s"`, selectedPath))
-			output, err = cmd.Output()
-			if err == nil {
-				selectedPath = strings.TrimSpace(string(output))
-			}
-		}
-	case "windows":
-		// Use PowerShell to open folder browser dialog
-		script := `
-		Add-Type -AssemblyName System.Windows.Forms
-		$folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
-		$folderBrowser.Description = "Select a directory to scan"
-		$folderBrowser.RootFolder = 'MyComputer'
-		if ($folderBrowser.ShowDialog() -eq 'OK') {
-			$folderBrowser.SelectedPath
-		}
-		`
-		cmd := exec.Command("powershell", "-Command", script)
-		output, err := cmd.Output()
-		if err == nil {
-			selectedPath = strings.TrimSpace(string(output))
-		}
-	default: // Linux
-		// Use zenity for Linux
-		cmd := exec.Command("zenity", "--file-selection", "--directory", "--title=Select a directory to scan")
-		output, err := cmd.Output()
-		if err == nil {
-			selectedPath = strings.TrimSpace(string(output))
-		}
-	}
-
-	if err != nil || selectedPath == "" {
-		log.Printf("Error opening file dialog: %v", err)
-		http.Error(w, "Failed to open file dialog", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("User selected directory: %s", selectedPath)
-	response := map[string]string{"path": selectedPath}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func countFiles(rootPath string, ignoreHidden bool) {
@@ -717,7 +651,7 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 								dirSizeBefore := dir.Size
 								dir.Size += size
 								if debugMode {
-									log.Printf("DEBUG: Updated dir %s size: %d + %d = %d bytes", 
+									log.Printf("DEBUG: Updated dir %s size: %d + %d = %d bytes",
 										dir.Path, dirSizeBefore, size, dir.Size)
 								}
 							} else {
@@ -818,7 +752,7 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 	if !dir.IsDir {
 		return dir.Size
 	}
-	
+
 	var totalSize int64 = 0
 	for i := range dir.Children {
 		childSize := dir.Children[i].Size
@@ -833,7 +767,7 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 		}
 		totalSize += childSize
 	}
-	
+
 	// Set this directory's size to the sum of its children
 	dir.Size = totalSize
 	return totalSize

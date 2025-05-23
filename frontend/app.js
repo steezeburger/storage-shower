@@ -1,5 +1,6 @@
 // DOM Elements
 const pathInput = document.getElementById('path-input');
+const directoryInput = document.getElementById('directory-input');
 const browseBtn = document.getElementById('browse-btn');
 const homeBtn = document.getElementById('home-btn');
 const scanBtn = document.getElementById('scan-btn');
@@ -66,6 +67,7 @@ function init() {
     browseBtn.addEventListener('click', browseDirectory);
     scanBtn.addEventListener('click', startScan);
     stopBtn.addEventListener('click', stopScan);
+    directoryInput.addEventListener('change', handleDirectorySelection);
     vizTypeRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
             vizType = e.target.value;
@@ -87,24 +89,26 @@ function init() {
     setHomeDirectory();
 }
 
-// Set home directory in the path input
-async function browseDirectory() {
-    console.log('Browse button clicked');
-    try {
-        const response = await fetch('/api/browse');
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}: ${await response.text()}`);
-        }
+// Handle directory selection from file input
+function handleDirectorySelection(event) {
+    if (event.target.files && event.target.files.length > 0) {
+        // Get the path from the first file in the directory
+        const file = event.target.files[0];
+        const path = file.path.substring(0, file.path.lastIndexOf(file.name) - 1);
         
-        const data = await response.json();
-        console.log('Selected directory:', data.path);
+        console.log('Selected directory:', path);
+        pathInput.value = path;
         
-        // Update the path input with the selected directory
-        pathInput.value = data.path;
-    } catch (error) {
-        console.error('Error browsing directory:', error);
-        alert('Failed to open directory browser. Please manually enter the directory path.');
+        // Reset the file input so the change event will fire again even if the same directory is selected
+        directoryInput.value = '';
     }
+}
+
+// Open file dialog to select a directory
+function browseDirectory() {
+    console.log('Browse button clicked');
+    // Trigger the hidden file input
+    directoryInput.click();
 }
 
 async function setHomeDirectory() {
