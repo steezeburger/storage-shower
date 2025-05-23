@@ -38,7 +38,7 @@ func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 
 	var totalSize int64 = 0
 	fileTypeStats := &FileTypeStats{}
-	
+
 	for i := range dir.Children {
 		log.Printf("  Child %d: %s (initial size: %d, isDir: %v)",
 			i, dir.Children[i].Path, dir.Children[i].Size, dir.Children[i].IsDir)
@@ -61,7 +61,7 @@ func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 				dir.Children[i].Size = childSize
 				dir.Children[i].FileTypes = childDir.FileTypes
 				log.Printf("  Updated child size to: %d", childSize)
-				
+
 				// Aggregate file type stats from child directory
 				if childDir.FileTypes != nil {
 					fileTypeStats.Image += childDir.FileTypes.Image
@@ -96,8 +96,8 @@ func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 	}
 
 	log.Printf("  Total size for %s: %d bytes", dir.Path, totalSize)
-	log.Printf("  File type stats: Image: %d, Video: %d, Audio: %d, Document: %d, Archive: %d, Other: %d", 
-		fileTypeStats.Image, fileTypeStats.Video, fileTypeStats.Audio, 
+	log.Printf("  File type stats: Image: %d, Video: %d, Audio: %d, Document: %d, Archive: %d, Other: %d",
+		fileTypeStats.Image, fileTypeStats.Video, fileTypeStats.Audio,
 		fileTypeStats.Document, fileTypeStats.Archive, fileTypeStats.Other)
 
 	// Set this directory's size and file type stats
@@ -129,7 +129,7 @@ func GetFileType(extension string) string {
 	if strings.Contains(ext, ".") {
 		parts := strings.Split(ext, ".")
 		lastPart := parts[len(parts)-1]
-		
+
 		// Special case for common archive formats
 		if lastPart == "gz" || lastPart == "bz2" || lastPart == "xz" {
 			return "archive"
@@ -162,7 +162,7 @@ func GetFileType(extension string) string {
 
 	// Document formats
 	documentFormats := []string{
-		"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", 
+		"pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
 		"txt", "rtf", "odt", "ods", "odp", "md", "csv",
 		"pages", "numbers", "key", "html", "htm", "xml", "json",
 	}
@@ -197,4 +197,3 @@ func FormatBytes(bytes int64) string {
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
-

@@ -194,7 +194,7 @@ func handleBrowse(w http.ResponseWriter, r *http.Request) {
 		if entry.IsDir() {
 			entryPath := filepath.Join(currentPath, entry.Name())
 			isHidden := fileinfo.IsHidden(entryPath)
-			
+
 			directories = append(directories, DirectoryEntry{
 				Name:     entry.Name(),
 				Path:     entryPath,
@@ -206,9 +206,9 @@ func handleBrowse(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare the response
 	response := struct {
-		CurrentPath  string           `json:"currentPath"`
-		ParentPath   string           `json:"parentPath"`
-		Directories  []DirectoryEntry `json:"directories"`
+		CurrentPath string           `json:"currentPath"`
+		ParentPath  string           `json:"parentPath"`
+		Directories []DirectoryEntry `json:"directories"`
 	}{
 		CurrentPath: currentPath,
 		ParentPath:  filepath.Dir(currentPath),
@@ -257,4 +257,3 @@ func openBrowser(url string) {
 		log.Printf("Please open your browser and navigate to: %s", url)
 	}
 }
-

@@ -8,19 +8,19 @@ import (
 type StallDetector struct {
 	// The time of the last activity
 	lastActivityTime time.Time
-	
+
 	// The number of items processed at the last check
 	lastItemCount int
-	
+
 	// Threshold in seconds before considering a scan stalled
 	stallThresholdSeconds int
-	
+
 	// Minimum number of items that must be processed before stall detection activates
 	minimumItemsForStallCheck int
-	
+
 	// Grace period in seconds during startup
 	startupGracePeriodSeconds int
-	
+
 	// Time when the scan started
 	scanStartTime time.Time
 }
@@ -59,12 +59,12 @@ func (d *StallDetector) IsStalled() bool {
 	if time.Since(d.scanStartTime).Seconds() < float64(d.startupGracePeriodSeconds) {
 		return false
 	}
-	
+
 	// If we haven't processed enough items, don't consider it stalled
 	if d.lastItemCount < d.minimumItemsForStallCheck {
 		return false
 	}
-	
+
 	// Check if we've passed the stall threshold
 	return time.Since(d.lastActivityTime).Seconds() > float64(d.stallThresholdSeconds)
 }
@@ -95,4 +95,3 @@ func (d *StallDetector) SetStartupGracePeriod(seconds int) {
 		d.startupGracePeriodSeconds = seconds
 	}
 }
-

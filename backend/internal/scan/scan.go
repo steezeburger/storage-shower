@@ -40,16 +40,16 @@ var (
 	scanStatus = ScanStatus{
 		InProgress: false,
 	}
-	
+
 	// List of previous scans
 	PreviousScans []ScanRecord
-	
+
 	// Mutex for thread-safe access to scan status
 	statusMutex sync.Mutex
-	
+
 	// Channel to signal scan cancellation
 	cancelScan chan struct{}
-	
+
 	// Debug flag to control verbose logging
 	DebugMode bool
 )
@@ -144,7 +144,7 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	statusMutex.Lock()
 	scanStatus.InProgress = false
 	statusMutex.Unlock()
-	
+
 	// Return the scan result
 	return scanResult, nil
 }
@@ -266,15 +266,15 @@ func CancelScan() bool {
 	if inProgress {
 		// Signal cancellation
 		close(cancelScan)
-		
+
 		// Update status
 		statusMutex.Lock()
 		scanStatus.InProgress = false
 		statusMutex.Unlock()
-		
+
 		return true
 	}
-	
+
 	return false
 }
 
@@ -341,4 +341,3 @@ func LoadPreviousScans() {
 	// Update global variable
 	PreviousScans = scans
 }
-

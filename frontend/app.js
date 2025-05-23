@@ -419,11 +419,11 @@ function renderTreemap(data) {
     });
 
   // Add rectangles for each cell - either solid color or multi-colored pattern
-  cell.each(function(d) {
+  cell.each(function (d) {
     const cellGroup = d3.select(this);
     const width = d.x1 - d.x0;
     const height = d.y1 - d.y0;
-    
+
     if (d.data.isDir && d.data.fileTypes) {
       // Create multi-colored rectangle for directories with file type data
       renderMultiColoredBox(cellGroup, width, height, d.data.fileTypes);
@@ -549,17 +549,26 @@ function updateDetailsPanel(item) {
   if (item.isDir) {
     let typeText = "Directory";
     if (item.fileTypes) {
-      const totalSize = item.fileTypes.image + item.fileTypes.video + item.fileTypes.audio + 
-                       item.fileTypes.document + item.fileTypes.archive + item.fileTypes.other;
+      const totalSize =
+        item.fileTypes.image +
+        item.fileTypes.video +
+        item.fileTypes.audio +
+        item.fileTypes.document +
+        item.fileTypes.archive +
+        item.fileTypes.other;
       if (totalSize > 0) {
         const breakdown = [];
-        if (item.fileTypes.image > 0) breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
-        if (item.fileTypes.video > 0) breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
+        if (item.fileTypes.image > 0)
+          breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
+        if (item.fileTypes.video > 0)
+          breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
         if (item.fileTypes.audio > 0) breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
-        if (item.fileTypes.document > 0) breakdown.push(`Documents: ${formatBytes(item.fileTypes.document)}`);
-        if (item.fileTypes.archive > 0) breakdown.push(`Archives: ${formatBytes(item.fileTypes.archive)}`);
+        if (item.fileTypes.document > 0)
+          breakdown.push(`Documents: ${formatBytes(item.fileTypes.document)}`);
+        if (item.fileTypes.archive > 0)
+          breakdown.push(`Archives: ${formatBytes(item.fileTypes.archive)}`);
         if (item.fileTypes.other > 0) breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
-        
+
         if (breakdown.length > 0) {
           typeText += " - " + breakdown.join(", ");
         }
@@ -623,9 +632,14 @@ function getFileTypeColor(extension) {
 
 // Render a multi-colored box showing file type proportions
 function renderMultiColoredBox(parentGroup, width, height, fileTypes) {
-  const totalSize = fileTypes.image + fileTypes.video + fileTypes.audio + 
-                   fileTypes.document + fileTypes.archive + fileTypes.other;
-  
+  const totalSize =
+    fileTypes.image +
+    fileTypes.video +
+    fileTypes.audio +
+    fileTypes.document +
+    fileTypes.archive +
+    fileTypes.other;
+
   if (totalSize === 0) {
     // If no files, render as directory color
     parentGroup
@@ -640,12 +654,12 @@ function renderMultiColoredBox(parentGroup, width, height, fileTypes) {
   // Calculate proportions and create segments
   const segments = [];
   const types = [
-    { name: 'image', size: fileTypes.image, color: typeColors.image },
-    { name: 'video', size: fileTypes.video, color: typeColors.video },
-    { name: 'audio', size: fileTypes.audio, color: typeColors.audio },
-    { name: 'document', size: fileTypes.document, color: typeColors.document },
-    { name: 'archive', size: fileTypes.archive, color: typeColors.archive },
-    { name: 'other', size: fileTypes.other, color: typeColors.other }
+    { name: "image", size: fileTypes.image, color: typeColors.image },
+    { name: "video", size: fileTypes.video, color: typeColors.video },
+    { name: "audio", size: fileTypes.audio, color: typeColors.audio },
+    { name: "document", size: fileTypes.document, color: typeColors.document },
+    { name: "archive", size: fileTypes.archive, color: typeColors.archive },
+    { name: "other", size: fileTypes.other, color: typeColors.other },
   ];
 
   // Filter out types with zero size and calculate cumulative widths
@@ -658,14 +672,14 @@ function renderMultiColoredBox(parentGroup, width, height, fileTypes) {
         width: segmentWidth,
         color: type.color,
         type: type.name,
-        size: type.size
+        size: type.size,
       });
       currentX += segmentWidth;
     }
   }
 
   // Render each segment as a rectangle
-  segments.forEach(segment => {
+  segments.forEach((segment) => {
     parentGroup
       .append("rect")
       .attr("class", "node file-type-segment")
@@ -688,7 +702,7 @@ function formatBytes(bytes, decimals = 2) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   // Special case for bytes to not show decimal places
   if (i === 0) {
     return Math.floor(bytes) + " " + sizes[i];

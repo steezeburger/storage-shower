@@ -1,9 +1,9 @@
 package fileinfo
 
 import (
-	"testing"
 	"path/filepath"
 	"strings"
+	"testing"
 )
 
 func TestFileInfo_Size(t *testing.T) {
@@ -45,14 +45,14 @@ func TestFileInfo_Size(t *testing.T) {
 
 	// Create dirMap to help fixDirectorySizes function find subdirectories
 	dirMap := make(map[string]*FileInfo)
-	
+
 	// Add subdir to dirMap
 	for i := range root.Children {
 		if root.Children[i].IsDir {
 			dirMap[root.Children[i].Path] = &root.Children[i]
 		}
 	}
-	
+
 	// Fix directory sizes
 	FixDirectorySizes(&root, dirMap)
 
@@ -127,8 +127,8 @@ func TestFormatBytes(t *testing.T) {
 
 func TestFileExtension(t *testing.T) {
 	tests := []struct {
-		path           string
-		expectedExt    string
+		path        string
+		expectedExt string
 	}{
 		{"/test/file.txt", "txt"},
 		{"/test/file.tar.gz", "gz"},
@@ -148,7 +148,7 @@ func TestFileExtension(t *testing.T) {
 				extension = ext[1:] // Remove the leading dot
 			}
 		}
-		
+
 		if extension != test.expectedExt {
 			t.Errorf("File extension for %s = %s, want %s", test.path, extension, test.expectedExt)
 		}
@@ -181,4 +181,3 @@ func TestGetFileType(t *testing.T) {
 		}
 	}
 }
-

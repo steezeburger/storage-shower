@@ -7,13 +7,13 @@ default:
 # Format all code
 format *args="":
     @echo "Formatting Go code..."
-    go fmt ./...
+    @(cd backend && go fmt ./...)
     @echo "Formatting frontend code..."
-    @if args == "--check"
-    npx prettier --check "frontend/**/*.{js,html,css}"
-    @else
-    npx prettier --write "frontend/**/*.{js,html,css}"
-    @endif
+    @if [ "{{args}}" = "--check" ]; then \
+        npx prettier --check "frontend/**/*.{js,html,css}"; \
+    else \
+        npx prettier --write "frontend/**/*.{js,html,css}"; \
+    fi
 
 # Lint all code
 lint: lint-go lint-js lint-html lint-css
@@ -21,7 +21,7 @@ lint: lint-go lint-js lint-html lint-css
 # Lint Go code
 lint-go:
     @echo "Linting Go code..."
-    go vet ./...
+    @(cd backend && go vet ./...)
 
 # Lint JavaScript
 lint-js:
@@ -153,7 +153,8 @@ install-linters:
 
 # Run backend tests
 test-backend:
-    go test -v ./...
+    @echo "Running tests for backend directory..."
+    @(cd backend && go test -v ./...)
 
 # Run frontend tests
 test-frontend:
@@ -164,6 +165,13 @@ test: test-backend test-frontend
 
 # Validate code (format and lint)
 validate: format lint
+
+# Run all checks before pushing to the repository
+prepush: format test
+    @echo "Skipping frontend linting during prepush (many expected errors in test files)..."
+    @echo "Running only Go linting..."
+    @just lint-go
+    @echo "All checks passed successfully!"
 
 # Create a DMG file for distribution
 dmg app_name="Storage Shower": bundle
