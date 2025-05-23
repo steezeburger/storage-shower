@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/steezeburger/storage-shower/backend/internal/fileinfo"
-	"github.com/steezeburger/storage-shower/backend/pkg/utils"
 )
 
 // Maximum number of previous scans to store
@@ -27,11 +25,12 @@ type ScanRecord struct {
 
 // ScanStatus contains information about a scan in progress
 type ScanStatus struct {
-	InProgress       bool      `json:"inProgress"`
-	CurrentDirectory string    `json:"currentDirectory"`
-	FilesScanned     int       `json:"filesScanned"`
-	StartTime        time.Time `json:"startTime"`
-	LastUpdate       time.Time `json:"lastUpdate"`
+	InProgress   bool    `json:"inProgress"`
+	CurrentPath  string  `json:"currentPath"`
+	ScannedItems int     `json:"scannedItems"`
+	TotalItems   int     `json:"totalItems"`
+	Progress     float64 `json:"progress"`
+	Stalled      bool    `json:"stalled,omitempty"`
 }
 
 // Shared variables
@@ -52,6 +51,13 @@ var (
 
 	// Debug flag to control verbose logging
 	DebugMode bool
+
+	// To track stalled scans
+	lastScannedItems int
+	lastProgressTime time.Time
+	
+	// Current result path
+	resultPath string
 )
 
 // ScanDirectory scans a directory and returns file information
@@ -69,23 +75,28 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	// Initialize scan status
 	statusMutex.Lock()
 	scanStatus = ScanStatus{
-		InProgress:       true,
-		CurrentDirectory: rootPath,
-		FilesScanned:     0,
-		StartTime:        time.Now(),
-		LastUpdate:       time.Now(),
+		InProgress:   true,
+		CurrentPath:  rootPath,
+		ScannedItems: 0,
+		TotalItems:   0,
+		Progress:     0.0,
 	}
+	lastScannedItems = 0
+	lastProgressTime = time.Now()
 	statusMutex.Unlock()
 
 	// Create a new cancel channel
 	cancelScan = make(chan struct{})
 
-	// Map to track directories by path
-	dirMap := make(map[string]*fileinfo.FileInfo)
+	// Start counting files in a separate goroutine
+	go countFiles(rootPath, ignoreHidden)
 
 	// Get basic info about the root directory
 	fileInfo, err := os.Stat(rootPath)
 	if err != nil {
+		statusMutex.Lock()
+		scanStatus.InProgress = false
+		statusMutex.Unlock()
 		return fileinfo.FileInfo{}, fmt.Errorf("failed to access path: %v", err)
 	}
 
@@ -97,13 +108,20 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 		Size:  fileInfo.Size(),
 	}
 
-	// Initialize a stall detector
-	detector := utils.NewStallDetector()
+	// Map to track directories by path
+	dirMap := make(map[string]*fileinfo.FileInfo)
+	dirMap[rootPath] = &root
 
 	// Scan the directory structure recursively
-	scanResult, err := scanRecursive(rootPath, &root, 0, ignoreHidden, dirMap, detector)
-	if err != nil {
-		// Clean up scan status on error
+	err = scanRecursive(rootPath, &root, dirMap, ignoreHidden)
+	
+	// Check if scan was canceled
+	if err != nil && err.Error() == "scan canceled" {
+		log.Printf("Scan was canceled")
+		// Still save the partial result
+		err = nil
+	} else if err != nil {
+		// On error, update status and return
 		statusMutex.Lock()
 		scanStatus.InProgress = false
 		statusMutex.Unlock()
@@ -116,93 +134,171 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	}
 	fileinfo.FixDirectorySizes(&root, dirMap)
 
-	// Generate a unique ID for this scan result
-	resultID := generateResultID()
-
-	// Record this scan
-	if len(root.Path) > 0 {
-		newScan := ScanRecord{
-			Path:      root.Path,
-			Timestamp: time.Now(),
-			ResultID:  resultID,
-			Size:      root.Size,
-		}
-
-		// Add to the beginning of the list
-		PreviousScans = append([]ScanRecord{newScan}, PreviousScans...)
-
-		// Trim list if needed
-		if len(PreviousScans) > MaxPreviousScans {
-			PreviousScans = PreviousScans[:MaxPreviousScans]
-		}
-
-		// Save previous scans to persistent storage
-		savePreviousScans()
+	// Save result to a temporary file
+	resultJSON, err := json.Marshal(root)
+	if err != nil {
+		log.Printf("Error marshaling result: %v", err)
+		statusMutex.Lock()
+		scanStatus.InProgress = false
+		statusMutex.Unlock()
+		return root, nil
 	}
 
-	// Update scan status to completed
+	tempFile, err := os.CreateTemp("", "storage-shower-*.json")
+	if err != nil {
+		log.Printf("Error creating temp file: %v", err)
+		statusMutex.Lock()
+		scanStatus.InProgress = false
+		statusMutex.Unlock()
+		return root, nil
+	}
+
+	_, err = tempFile.Write(resultJSON)
+	if err != nil {
+		log.Printf("Error writing to temp file: %v", err)
+		tempFile.Close()
+		statusMutex.Lock()
+		scanStatus.InProgress = false
+		statusMutex.Unlock()
+		return root, nil
+	}
+
+	tempFile.Close()
+
+	// Generate a unique ID for this scan result
+	resultID := filepath.Base(tempFile.Name())
+
+	// Record this scan
+	newScan := ScanRecord{
+		Path:      rootPath,
+		Timestamp: time.Now(),
+		ResultID:  resultID,
+		Size:      root.Size,
+	}
+
+	// Update global variables
 	statusMutex.Lock()
+	resultPath = tempFile.Name()
+	PreviousScans = append([]ScanRecord{newScan}, PreviousScans...)
+	if len(PreviousScans) > MaxPreviousScans {
+		PreviousScans = PreviousScans[:MaxPreviousScans]
+	}
 	scanStatus.InProgress = false
 	statusMutex.Unlock()
 
-	// Return the scan result
-	return scanResult, nil
+	// Save previous scans to persistent storage
+	SavePreviousScans()
+
+	log.Printf("Scan completed successfully for path: %s", rootPath)
+	log.Printf("Scan result saved to %s (%s)", tempFile.Name(), fileinfo.FormatBytes(int64(len(resultJSON))))
+
+	return root, nil
 }
 
-// Recursive function to scan directories
-func scanRecursive(rootPath string, root *fileinfo.FileInfo, depth int, ignoreHidden bool, dirMap map[string]*fileinfo.FileInfo, detector *utils.StallDetector) (fileinfo.FileInfo, error) {
-	if depth == 0 {
-		// Store the root directory in dirMap
-		dirMap[root.Path] = root
-	}
+// countFiles counts files in a directory to provide progress information
+func countFiles(rootPath string, ignoreHidden bool) {
+	log.Printf("Starting file count for: %s", rootPath)
+	var count int
 
-	// Update scan status
+	filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip items we can't access
+		}
+
+		// Check if we should cancel
+		select {
+		case <-cancelScan:
+			return filepath.SkipAll
+		default:
+			// Continue with scan
+		}
+
+		if ignoreHidden && fileinfo.IsHidden(path) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		count++
+
+		if count%1000 == 0 {
+			log.Printf("Counted %d files so far...", count)
+		}
+
+		statusMutex.Lock()
+		scanStatus.TotalItems = count
+		statusMutex.Unlock()
+
+		return nil
+	})
+
+	log.Printf("File count completed: %d total items found", count)
 	statusMutex.Lock()
-	scanStatus.CurrentDirectory = rootPath
-	scanStatus.FilesScanned++
-	scanStatus.LastUpdate = time.Now()
-	filesScanned := scanStatus.FilesScanned
+	scanStatus.TotalItems = count
 	statusMutex.Unlock()
+}
 
-	// Update stall detector
-	detector.UpdateActivity(filesScanned)
-
-	// Check for scan cancellation
+// scanRecursive recursively scans a directory
+func scanRecursive(path string, dir *fileinfo.FileInfo, dirMap map[string]*fileinfo.FileInfo, ignoreHidden bool) error {
+	// Check for cancellation
 	select {
 	case <-cancelScan:
-		return fileinfo.FileInfo{}, fmt.Errorf("scan cancelled")
+		return fmt.Errorf("scan canceled")
 	default:
 		// Continue with scan
 	}
 
-	// Check for stall
-	if detector.IsStalled() {
-		log.Printf("Warning: Scan appears to be stalled in directory: %s", rootPath)
-		log.Printf("Files scanned: %d, Last activity: %v", filesScanned, detector.GetLastActivityTime())
+	// Update scan status
+	statusMutex.Lock()
+	scanStatus.CurrentPath = path
+	scanStatus.ScannedItems++
+	if scanStatus.TotalItems > 0 {
+		scanStatus.Progress = float64(scanStatus.ScannedItems) / float64(scanStatus.TotalItems)
 	}
+	
+	// Check for stalled scan
+	if scanStatus.ScannedItems > 0 {
+		if scanStatus.ScannedItems > lastScannedItems {
+			// Progress is being made, update the last known state
+			lastScannedItems = scanStatus.ScannedItems
+			lastProgressTime = time.Now()
+			scanStatus.Stalled = false
+		} else if time.Since(lastProgressTime) > 30*time.Second {
+			// No progress for 30 seconds, consider scan stalled
+			log.Printf("Scan appears stalled - no progress for 30 seconds")
+			scanStatus.Stalled = true
+		}
+	}
+	statusMutex.Unlock()
 
 	// Only read the directory if it's a directory
-	if !root.IsDir {
-		return *root, nil
+	if !dir.IsDir {
+		return nil
 	}
 
 	// Read directory contents
-	dirEntries, err := os.ReadDir(rootPath)
+	entries, err := os.ReadDir(path)
 	if err != nil {
-		// If we can't read the directory, log it but continue
-		log.Printf("Warning: Cannot read directory %s: %v", rootPath, err)
-		return *root, nil
+		log.Printf("Warning: Cannot read directory %s: %v", path, err)
+		return nil
 	}
 
 	// Process each entry in the directory
-	for _, entry := range dirEntries {
+	for _, entry := range entries {
+		// Check for cancellation again
+		select {
+		case <-cancelScan:
+			return fmt.Errorf("scan canceled")
+		default:
+			// Continue with scan
+		}
+
+		entryName := entry.Name()
+		entryPath := filepath.Join(path, entryName)
+
 		// Skip hidden files/directories if requested
-		entryPath := filepath.Join(rootPath, entry.Name())
-		isHiddenEntry := fileinfo.IsHidden(entryPath)
-		if ignoreHidden && isHiddenEntry {
-			if DebugMode {
-				log.Printf("Skipping hidden: %s", entryPath)
-			}
+		if ignoreHidden && fileinfo.IsHidden(entryPath) {
 			continue
 		}
 
@@ -222,32 +318,33 @@ func scanRecursive(rootPath string, root *fileinfo.FileInfo, depth int, ignoreHi
 		}
 
 		// Create file info for this entry
+		fileSize := info.Size()
 		entryInfo := fileinfo.FileInfo{
-			Name:      entry.Name(),
+			Name:      entryName,
 			Path:      entryPath,
-			Size:      info.Size(),
+			Size:      fileSize,
 			IsDir:     entry.IsDir(),
 			Extension: extension,
 		}
 
-		// If it's a directory, recursively scan it
-		if entry.IsDir() {
-			// Add this directory to the dirMap before recursion
-			dirMap[entryPath] = &entryInfo
+		// Add to parent's children
+		dir.Children = append(dir.Children, entryInfo)
 
-			// Recursively scan this directory
-			_, err := scanRecursive(entryPath, &entryInfo, depth+1, ignoreHidden, dirMap, detector)
+		// If it's a directory, add to dirMap and recursively scan
+		if entry.IsDir() {
+			// Store a reference to the directory in the map
+			dirIndex := len(dir.Children) - 1
+			dirMap[entryPath] = &dir.Children[dirIndex]
+
+			// Recursively scan the directory
+			err := scanRecursive(entryPath, &dir.Children[dirIndex], dirMap, ignoreHidden)
 			if err != nil {
-				// On error, still add partial results but log the error
-				log.Printf("Warning: Error scanning subdirectory %s: %v", entryPath, err)
+				return err
 			}
 		}
-
-		// Add this entry to the parent's children
-		root.Children = append(root.Children, entryInfo)
 	}
 
-	return *root, nil
+	return nil
 }
 
 // GetScanStatus returns the current scan status
@@ -258,7 +355,7 @@ func GetScanStatus() ScanStatus {
 }
 
 // CancelScan cancels any scan in progress
-func CancelScan() bool {
+func CancelScan() string {
 	statusMutex.Lock()
 	inProgress := scanStatus.InProgress
 	statusMutex.Unlock()
@@ -266,27 +363,77 @@ func CancelScan() bool {
 	if inProgress {
 		// Signal cancellation
 		close(cancelScan)
-
-		// Update status
-		statusMutex.Lock()
-		scanStatus.InProgress = false
-		statusMutex.Unlock()
-
-		return true
+		return "stopping"
 	}
 
-	return false
+	return "not_running"
 }
 
-// generateResultID creates a unique ID for scan results
-func generateResultID() string {
-	// Create a random ID with timestamp
-	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("scan_%d_%d", time.Now().Unix(), rand.Intn(10000))
+// GetLatestScanResult returns the most recent scan result
+func GetLatestScanResult() (fileinfo.FileInfo, error) {
+	statusMutex.Lock()
+	path := resultPath
+	scans := PreviousScans
+	statusMutex.Unlock()
+
+	if path == "" || len(scans) == 0 {
+		return fileinfo.FileInfo{}, fmt.Errorf("no scan results available")
+	}
+
+	// Read the result file
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fileinfo.FileInfo{}, fmt.Errorf("failed to read scan result: %v", err)
+	}
+
+	// Parse the result
+	var result fileinfo.FileInfo
+	if err := json.Unmarshal(data, &result); err != nil {
+		return fileinfo.FileInfo{}, fmt.Errorf("failed to parse scan result: %v", err)
+	}
+
+	return result, nil
 }
 
-// savePreviousScans saves the list of previous scans to a file
-func savePreviousScans() {
+// GetScanResultByID returns a specific scan result by ID
+func GetScanResultByID(resultID string) (fileinfo.FileInfo, error) {
+	statusMutex.Lock()
+	scans := PreviousScans
+	statusMutex.Unlock()
+
+	// Find the scan record
+	found := false
+	for _, scan := range scans {
+		if scan.ResultID == resultID {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fileinfo.FileInfo{}, fmt.Errorf("scan result with ID %s not found", resultID)
+	}
+
+	// Extract the full path from the ResultID
+	resultPath := filepath.Join(os.TempDir(), resultID)
+
+	// Read the result file
+	data, err := os.ReadFile(resultPath)
+	if err != nil {
+		return fileinfo.FileInfo{}, fmt.Errorf("failed to read scan result: %v", err)
+	}
+
+	// Parse the result
+	var result fileinfo.FileInfo
+	if err := json.Unmarshal(data, &result); err != nil {
+		return fileinfo.FileInfo{}, fmt.Errorf("failed to parse scan result: %v", err)
+	}
+
+	return result, nil
+}
+
+// SavePreviousScans saves the list of previous scans to a file
+func SavePreviousScans() {
 	// Get user's home directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -303,7 +450,11 @@ func savePreviousScans() {
 
 	// Save to file
 	scansFile := filepath.Join(configDir, "previous-scans.json")
+	
+	statusMutex.Lock()
 	data, err := json.MarshalIndent(PreviousScans, "", "  ")
+	statusMutex.Unlock()
+	
 	if err != nil {
 		log.Printf("Warning: Cannot marshal scan history: %v", err)
 		return
@@ -339,5 +490,7 @@ func LoadPreviousScans() {
 	}
 
 	// Update global variable
+	statusMutex.Lock()
 	PreviousScans = scans
+	statusMutex.Unlock()
 }

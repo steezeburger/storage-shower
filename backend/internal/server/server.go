@@ -1,46 +1,24 @@
 package server
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
+	"os/user"
 	"runtime"
+	"strings"
 
 	"github.com/steezeburger/storage-shower/backend/internal/fileinfo"
 	"github.com/steezeburger/storage-shower/backend/internal/scan"
 )
 
-// StartServer starts the HTTP server on port 8080
-func StartServer() int {
-	// Set up file server for frontend directory
-	fs := http.FileServer(http.Dir("../"))
-
-	// Serve frontend files with explicit MIME types
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			w.Header().Set("Content-Type", "text/html")
-			http.ServeFile(w, r, "../frontend/index.html")
-			return
-		}
-		fs.ServeHTTP(w, r)
-	})
-
-	// Set specific MIME types for JavaScript and CSS
-	http.HandleFunc("/frontend/app.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		http.ServeFile(w, r, "../frontend/app.js")
-	})
-
-	http.HandleFunc("/frontend/styles.css", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/css")
-		http.ServeFile(w, r, "../frontend/styles.css")
-	})
-
-	// API endpoints
+// StartServer starts the HTTP server and returns the port it's listening on
+func StartServer(frontendFS embed.FS) int {
+	// Set up API routes
 	http.HandleFunc("/api/scan", handleScan)
 	http.HandleFunc("/api/scan/status", handleScanStatus)
 	http.HandleFunc("/api/scan/stop", handleScanStop)
@@ -48,6 +26,9 @@ func StartServer() int {
 	http.HandleFunc("/api/browse", handleBrowse)
 	http.HandleFunc("/api/results", handleResults)
 	http.HandleFunc("/api/previous-scans", handlePreviousScans)
+
+	// Serve frontend files
+	setupFrontendHandlers(frontendFS)
 
 	// Use port 8080
 	port := 8080
@@ -69,6 +50,92 @@ func StartServer() int {
 	return port
 }
 
+// setupFrontendHandlers configures handlers for serving the embedded frontend files
+func setupFrontendHandlers(frontendFS embed.FS) {
+	// Get the frontend subfolder
+	frontendSubFS, err := fs.Sub(frontendFS, "frontend")
+	if err != nil {
+		log.Fatalf("Failed to get frontend subfolder: %v", err)
+	}
+
+	// Serve the index.html file for the root path
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			content, err := fs.ReadFile(frontendSubFS, "index.html")
+			if err != nil {
+				http.Error(w, "Failed to read index.html", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			w.Write(content)
+			return
+		}
+		
+		// For non-root paths, try to serve static files
+		filePath := r.URL.Path
+		if filePath != "/" {
+			filePath = strings.TrimPrefix(filePath, "/")
+			serveStaticFile(w, r, frontendSubFS, filePath)
+			return
+		}
+		
+		// If we get here, return 404
+		http.NotFound(w, r)
+	})
+	
+	// Add explicit handlers for the main frontend assets
+	http.HandleFunc("/frontend/app.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		content, err := fs.ReadFile(frontendSubFS, "app.js")
+		if err != nil {
+			http.Error(w, "Failed to read app.js", http.StatusInternalServerError)
+			return
+		}
+		w.Write(content)
+	})
+	
+	http.HandleFunc("/frontend/styles.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		content, err := fs.ReadFile(frontendSubFS, "styles.css")
+		if err != nil {
+			http.Error(w, "Failed to read styles.css", http.StatusInternalServerError)
+			return
+		}
+		w.Write(content)
+	})
+}
+
+// serveStaticFile serves a static file from the embedded filesystem with the correct MIME type
+func serveStaticFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, path string) {
+	// Set appropriate MIME type based on file extension
+	switch {
+	case strings.HasSuffix(path, ".js"):
+		w.Header().Set("Content-Type", "application/javascript")
+	case strings.HasSuffix(path, ".css"):
+		w.Header().Set("Content-Type", "text/css")
+	case strings.HasSuffix(path, ".html"):
+		w.Header().Set("Content-Type", "text/html")
+	case strings.HasSuffix(path, ".json"):
+		w.Header().Set("Content-Type", "application/json")
+	case strings.HasSuffix(path, ".png"):
+		w.Header().Set("Content-Type", "image/png")
+	case strings.HasSuffix(path, ".jpg"), strings.HasSuffix(path, ".jpeg"):
+		w.Header().Set("Content-Type", "image/jpeg")
+	case strings.HasSuffix(path, ".svg"):
+		w.Header().Set("Content-Type", "image/svg+xml")
+	}
+	
+	// Try to read the file
+	content, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+	
+	// Write the content to the response
+	w.Write(content)
+}
+
 // handleScan initiates a new directory scan
 func handleScan(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -88,6 +155,12 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate path
+	if requestData.Path == "" {
+		http.Error(w, "Path is required", http.StatusBadRequest)
+		return
+	}
+
 	// Check if another scan is in progress
 	status := scan.GetScanStatus()
 	if status.InProgress {
@@ -97,18 +170,18 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 
 	// Start scan in a goroutine
 	go func() {
-		result, err := scan.ScanDirectory(requestData.Path, requestData.IgnoreHidden)
+		_, err := scan.ScanDirectory(requestData.Path, requestData.IgnoreHidden)
 		if err != nil {
 			log.Printf("Scan error: %v", err)
 		} else {
-			log.Printf("Scan completed: %s, found %d items", requestData.Path, len(result.Children))
+			log.Printf("Scan completed: %s", requestData.Path)
 		}
 	}()
 
 	// Return success
-	w.WriteHeader(http.StatusAccepted)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "scan_started",
+		"status": "started",
 	})
 }
 
@@ -128,14 +201,14 @@ func handleScanStop(w http.ResponseWriter, r *http.Request) {
 
 	cancelled := scan.CancelScan()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]bool{
-		"cancelled": cancelled,
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": cancelled,
 	})
 }
 
 // handleHome returns the user's home directory path
 func handleHome(w http.ResponseWriter, r *http.Request) {
-	homeDir, err := os.UserHomeDir()
+	u, err := user.Current()
 	if err != nil {
 		http.Error(w, "Failed to get home directory", http.StatusInternalServerError)
 		return
@@ -143,85 +216,102 @@ func handleHome(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"path": homeDir,
+		"home": u.HomeDir,
 	})
 }
 
-// handleBrowse returns a list of directories in the specified path
+// handleBrowse opens a native file dialog and returns the selected directory
 func handleBrowse(w http.ResponseWriter, r *http.Request) {
-	// Get the current path from query parameters
-	queryValues := r.URL.Query()
-	currentPath := queryValues.Get("path")
-
-	// If no path provided, default to user's home directory
-	if currentPath == "" {
-		var err error
-		currentPath, err = os.UserHomeDir()
-		if err != nil {
-			http.Error(w, "Failed to get home directory", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Get a list of directories at this path
-	entries, err := os.ReadDir(currentPath)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to read directory: %v", err), http.StatusInternalServerError)
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	type DirectoryEntry struct {
-		Name     string `json:"name"`
-		Path     string `json:"path"`
-		IsDir    bool   `json:"isDir"`
-		IsHidden bool   `json:"isHidden"`
-	}
+	var selectedPath string
+	var err error
 
-	var directories []DirectoryEntry
-
-	// Process only directories
-	for _, entry := range entries {
-		if entry.IsDir() {
-			entryPath := filepath.Join(currentPath, entry.Name())
-			isHidden := fileinfo.IsHidden(entryPath)
-			
-			directories = append(directories, DirectoryEntry{
-				Name:     entry.Name(),
-				Path:     entryPath,
-				IsDir:    true,
-				IsHidden: isHidden,
-			})
+	switch runtime.GOOS {
+	case "darwin":
+		// Use AppleScript to open a folder selection dialog
+		cmd := exec.Command("osascript", "-e", `choose folder with prompt "Select a directory to scan"`)
+		output, err := cmd.Output()
+		if err == nil {
+			// AppleScript returns something like 'alias Macintosh HD:Users:username:Documents:'
+			// Convert it to a regular path
+			selectedPath = strings.TrimSpace(string(output))
+			// Remove 'alias ' prefix if present
+			selectedPath = strings.TrimPrefix(selectedPath, "alias ")
+			// Convert to POSIX path
+			cmd = exec.Command("osascript", "-e", fmt.Sprintf(`POSIX path of "%s"`, selectedPath))
+			output, err = cmd.Output()
+			if err == nil {
+				selectedPath = strings.TrimSpace(string(output))
+			}
+		}
+	case "windows":
+		// Use PowerShell to open folder browser dialog
+		script := `
+		Add-Type -AssemblyName System.Windows.Forms
+		$folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+		$folderBrowser.Description = "Select a directory to scan"
+		$folderBrowser.RootFolder = 'MyComputer'
+		if ($folderBrowser.ShowDialog() -eq 'OK') {
+			$folderBrowser.SelectedPath
+		}
+		`
+		cmd := exec.Command("powershell", "-Command", script)
+		output, err := cmd.Output()
+		if err == nil {
+			selectedPath = strings.TrimSpace(string(output))
+		}
+	default: // Linux
+		// Use zenity for Linux
+		cmd := exec.Command("zenity", "--file-selection", "--directory", "--title=Select a directory to scan")
+		output, err := cmd.Output()
+		if err == nil {
+			selectedPath = strings.TrimSpace(string(output))
 		}
 	}
 
-	// Prepare the response
-	response := struct {
-		CurrentPath  string           `json:"currentPath"`
-		ParentPath   string           `json:"parentPath"`
-		Directories  []DirectoryEntry `json:"directories"`
-	}{
-		CurrentPath: currentPath,
-		ParentPath:  filepath.Dir(currentPath),
-		Directories: directories,
+	if err != nil || selectedPath == "" {
+		log.Printf("Error opening file dialog: %v", err)
+		http.Error(w, "Failed to open file dialog", http.StatusInternalServerError)
+		return
 	}
 
+	log.Printf("User selected directory: %s", selectedPath)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(map[string]string{
+		"path": selectedPath,
+	})
 }
 
-// handleResults returns the most recent scan results
+// handleResults returns the scan results
 func handleResults(w http.ResponseWriter, r *http.Request) {
-	if len(scan.PreviousScans) == 0 {
-		http.Error(w, "No scan results available", http.StatusNotFound)
+	// Check if a specific result ID is requested
+	resultID := r.URL.Query().Get("id")
+
+	var result fileinfo.FileInfo
+	var err error
+
+	if resultID != "" {
+		// Get a specific scan result by ID
+		result, err = scan.GetScanResultByID(resultID)
+	} else {
+		// Get the most recent scan result
+		result, err = scan.GetLatestScanResult()
+	}
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	// Return the most recent scan
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(scan.PreviousScans[0])
+	json.NewEncoder(w).Encode(result)
 }
 
-// handlePreviousScans returns all previous scan records
+// handlePreviousScans returns a list of previous scan records
 func handlePreviousScans(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(scan.PreviousScans)
