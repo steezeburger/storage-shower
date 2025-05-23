@@ -74,7 +74,7 @@ header h1 {
 
 button {
   background-color: var(--primary-color);
-  color: white;
+  color: #fff;
   border: none;
   border-radius: 4px;
   padding: 8px 15px;
@@ -209,7 +209,7 @@ input[type="radio"] {
   top: 50%;
   transform: translateY(-50%);
   background-color: var(--primary-color);
-  color: white;
+  color: #fff;
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
@@ -337,7 +337,7 @@ input[type="radio"] {
 .node-label {
   pointer-events: none;
   font-size: 12px;
-  fill: white;
+  fill: #fff;
   text-shadow: 0 0 3px rgb(0 0 0 / 70%);
 }
 
