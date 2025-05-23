@@ -318,6 +318,18 @@ input[type="radio"] {
   stroke-width: 2px;
 }
 
+.file-type-segment {
+  cursor: pointer;
+  stroke: #fff;
+  stroke-width: 0.5px;
+}
+
+.file-type-segment:hover {
+  stroke: #000;
+  stroke-width: 1px;
+  opacity: 0.8;
+}
+
 .node-label {
   pointer-events: none;
   font-size: 12px;

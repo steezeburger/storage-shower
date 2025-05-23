@@ -418,16 +418,25 @@ function renderTreemap(data) {
       updateDetailsPanel(d.data);
     });
 
-  // Add rectangles for each cell
-  cell
-    .append("rect")
-    .attr("class", "node")
-    .attr("width", (d) => d.x1 - d.x0)
-    .attr("height", (d) => d.y1 - d.y0)
-    .attr("fill", (d) => {
-      if (d.data.isDir) return typeColors.directory;
-      return getFileTypeColor(d.data.extension);
-    });
+  // Add rectangles for each cell - either solid color or multi-colored pattern
+  cell.each(function(d) {
+    const cellGroup = d3.select(this);
+    const width = d.x1 - d.x0;
+    const height = d.y1 - d.y0;
+    
+    if (d.data.isDir && d.data.fileTypes) {
+      // Create multi-colored rectangle for directories with file type data
+      renderMultiColoredBox(cellGroup, width, height, d.data.fileTypes);
+    } else {
+      // Single color rectangle for files or directories without file type data
+      cellGroup
+        .append("rect")
+        .attr("class", "node")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("fill", d.data.isDir ? typeColors.directory : getFileTypeColor(d.data.extension));
+    }
+  });
 
   // Add labels for cells that are large enough
   cell
@@ -538,7 +547,25 @@ function updateDetailsPanel(item) {
   selectedSizeText.textContent = formatBytes(item.size);
 
   if (item.isDir) {
-    selectedTypeText.textContent = "Directory";
+    let typeText = "Directory";
+    if (item.fileTypes) {
+      const totalSize = item.fileTypes.image + item.fileTypes.video + item.fileTypes.audio + 
+                       item.fileTypes.document + item.fileTypes.archive + item.fileTypes.other;
+      if (totalSize > 0) {
+        const breakdown = [];
+        if (item.fileTypes.image > 0) breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
+        if (item.fileTypes.video > 0) breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
+        if (item.fileTypes.audio > 0) breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
+        if (item.fileTypes.document > 0) breakdown.push(`Documents: ${formatBytes(item.fileTypes.document)}`);
+        if (item.fileTypes.archive > 0) breakdown.push(`Archives: ${formatBytes(item.fileTypes.archive)}`);
+        if (item.fileTypes.other > 0) breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
+        
+        if (breakdown.length > 0) {
+          typeText += " - " + breakdown.join(", ");
+        }
+      }
+    }
+    selectedTypeText.textContent = typeText;
   } else {
     selectedTypeText.textContent = item.extension ? `File (.${item.extension})` : "File";
   }
@@ -592,6 +619,64 @@ function getFileTypeColor(extension) {
   }
 
   return typeColors.other;
+}
+
+// Render a multi-colored box showing file type proportions
+function renderMultiColoredBox(parentGroup, width, height, fileTypes) {
+  const totalSize = fileTypes.image + fileTypes.video + fileTypes.audio + 
+                   fileTypes.document + fileTypes.archive + fileTypes.other;
+  
+  if (totalSize === 0) {
+    // If no files, render as directory color
+    parentGroup
+      .append("rect")
+      .attr("class", "node")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("fill", typeColors.directory);
+    return;
+  }
+
+  // Calculate proportions and create segments
+  const segments = [];
+  const types = [
+    { name: 'image', size: fileTypes.image, color: typeColors.image },
+    { name: 'video', size: fileTypes.video, color: typeColors.video },
+    { name: 'audio', size: fileTypes.audio, color: typeColors.audio },
+    { name: 'document', size: fileTypes.document, color: typeColors.document },
+    { name: 'archive', size: fileTypes.archive, color: typeColors.archive },
+    { name: 'other', size: fileTypes.other, color: typeColors.other }
+  ];
+
+  // Filter out types with zero size and calculate cumulative widths
+  let currentX = 0;
+  for (const type of types) {
+    if (type.size > 0) {
+      const segmentWidth = (type.size / totalSize) * width;
+      segments.push({
+        x: currentX,
+        width: segmentWidth,
+        color: type.color,
+        type: type.name,
+        size: type.size
+      });
+      currentX += segmentWidth;
+    }
+  }
+
+  // Render each segment as a rectangle
+  segments.forEach(segment => {
+    parentGroup
+      .append("rect")
+      .attr("class", "node file-type-segment")
+      .attr("x", segment.x)
+      .attr("y", 0)
+      .attr("width", segment.width)
+      .attr("height", height)
+      .attr("fill", segment.color)
+      .attr("data-file-type", segment.type)
+      .attr("data-file-size", segment.size);
+  });
 }
 
 // Format bytes to human-readable format

@@ -37,14 +37,25 @@ type ScanRecord struct {
 // List of previous scans
 var previousScans []ScanRecord
 
+// FileTypeStats represents statistics about file types in a directory
+type FileTypeStats struct {
+	Image    int64 `json:"image"`
+	Video    int64 `json:"video"`
+	Audio    int64 `json:"audio"`
+	Document int64 `json:"document"`
+	Archive  int64 `json:"archive"`
+	Other    int64 `json:"other"`
+}
+
 // FileInfo represents a file or directory with its size and children
 type FileInfo struct {
-	Name      string     `json:"name"`
-	Path      string     `json:"path"`
-	Size      int64      `json:"size"`
-	IsDir     bool       `json:"isDir"`
-	Children  []FileInfo `json:"children,omitempty"`
-	Extension string     `json:"extension,omitempty"`
+	Name         string         `json:"name"`
+	Path         string         `json:"path"`
+	Size         int64          `json:"size"`
+	IsDir        bool           `json:"isDir"`
+	Children     []FileInfo     `json:"children,omitempty"`
+	Extension    string         `json:"extension,omitempty"`
+	FileTypes    *FileTypeStats `json:"fileTypes,omitempty"`
 }
 
 // ScanProgress represents the current progress of a filesystem scan
@@ -868,6 +879,7 @@ func formatBytes(bytes int64) string {
 }
 
 // fixDirectorySizes ensures all directory sizes are the sum of their children
+// and calculates file type statistics for directories
 func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 	if !dir.IsDir {
 		return dir.Size
@@ -876,6 +888,8 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 	log.Printf("Fixing directory size for: %s", dir.Path)
 
 	var totalSize int64 = 0
+	fileTypeStats := &FileTypeStats{}
+	
 	for i := range dir.Children {
 		log.Printf("  Child %d: %s (initial size: %d, isDir: %v)",
 			i, dir.Children[i].Path, dir.Children[i].Size, dir.Children[i].IsDir)
@@ -896,22 +910,109 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 				childSize = fixDirectorySizes(childDir, dirMap)
 				// Update the size in our children array too
 				dir.Children[i].Size = childSize
+				dir.Children[i].FileTypes = childDir.FileTypes
 				log.Printf("  Updated child size to: %d", childSize)
+				
+				// Aggregate file type stats from child directory
+				if childDir.FileTypes != nil {
+					fileTypeStats.Image += childDir.FileTypes.Image
+					fileTypeStats.Video += childDir.FileTypes.Video
+					fileTypeStats.Audio += childDir.FileTypes.Audio
+					fileTypeStats.Document += childDir.FileTypes.Document
+					fileTypeStats.Archive += childDir.FileTypes.Archive
+					fileTypeStats.Other += childDir.FileTypes.Other
+				}
 			} else {
 				log.Printf("  WARNING: Child directory not found in dirMap: %s", childPath)
+			}
+		} else {
+			// For files, add their size to the appropriate file type category
+			fileType := getFileType(dir.Children[i].Extension)
+			switch fileType {
+			case "image":
+				fileTypeStats.Image += childSize
+			case "video":
+				fileTypeStats.Video += childSize
+			case "audio":
+				fileTypeStats.Audio += childSize
+			case "document":
+				fileTypeStats.Document += childSize
+			case "archive":
+				fileTypeStats.Archive += childSize
+			default:
+				fileTypeStats.Other += childSize
 			}
 		}
 		totalSize += childSize
 	}
 
 	log.Printf("  Total size for %s: %d bytes", dir.Path, totalSize)
+	log.Printf("  File type stats: Image: %d, Video: %d, Audio: %d, Document: %d, Archive: %d, Other: %d", 
+		fileTypeStats.Image, fileTypeStats.Video, fileTypeStats.Audio, 
+		fileTypeStats.Document, fileTypeStats.Archive, fileTypeStats.Other)
 
-	// Set this directory's size to the sum of its children
+	// Set this directory's size and file type stats
 	dir.Size = totalSize
+	dir.FileTypes = fileTypeStats
 	return totalSize
 }
 
 func isHidden(path string) bool {
 	name := filepath.Base(path)
 	return strings.HasPrefix(name, ".") && name != "." && name != ".."
+}
+
+// getFileType categorizes a file based on its extension
+func getFileType(extension string) string {
+	if extension == "" {
+		return "other"
+	}
+	
+	ext := strings.ToLower(extension)
+	
+	imageExts := map[string]bool{
+		"jpg": true, "jpeg": true, "png": true, "gif": true, "svg": true,
+		"webp": true, "bmp": true, "tiff": true, "ico": true, "heic": true,
+	}
+	
+	videoExts := map[string]bool{
+		"mp4": true, "mov": true, "avi": true, "mkv": true, "wmv": true,
+		"flv": true, "webm": true, "m4v": true, "mpg": true, "mpeg": true,
+	}
+	
+	audioExts := map[string]bool{
+		"mp3": true, "wav": true, "ogg": true, "flac": true, "aac": true,
+		"m4a": true, "wma": true, "aiff": true,
+	}
+	
+	documentExts := map[string]bool{
+		"pdf": true, "doc": true, "docx": true, "xls": true, "xlsx": true,
+		"ppt": true, "pptx": true, "txt": true, "rtf": true, "md": true,
+		"csv": true, "json": true, "xml": true, "html": true, "css": true,
+		"js": true, "ts": true, "go": true, "py": true, "java": true,
+		"c": true, "cpp": true, "h": true, "rb": true, "php": true,
+	}
+	
+	archiveExts := map[string]bool{
+		"zip": true, "rar": true, "7z": true, "tar": true, "gz": true,
+		"bz2": true, "xz": true, "iso": true, "dmg": true,
+	}
+	
+	if imageExts[ext] {
+		return "image"
+	}
+	if videoExts[ext] {
+		return "video"
+	}
+	if audioExts[ext] {
+		return "audio"
+	}
+	if documentExts[ext] {
+		return "document"
+	}
+	if archiveExts[ext] {
+		return "archive"
+	}
+	
+	return "other"
 }
