@@ -9,7 +9,7 @@ Feature Requests:
 - [x] the project should have a code formatter. use defaults of the most popular formatter for the language.
 - [x] the project should have a linter
 - [x] move the build script logic to the justfile
-- [ ] the projet should have a github action to check the formatting and run the linter
+- [x] the projet should have a github action to check the formatting and run the linter
 - [ ] the project should have backend tests
 - [ ] the project should have frontend tests
 - [ ] the project should have a github action to run the tests

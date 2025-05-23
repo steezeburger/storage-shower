@@ -1,0 +1,63 @@
+name: Format and Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.19'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          npm install
+
+      - name: Install Just
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+
+      - name: Check Go formatting
+        run: |
+          gofmt -l .
+          test -z "$(gofmt -l .)"
+
+      - name: Run Go linter
+        run: |
+          go vet ./...
+
+      - name: Install frontend linters
+        run: |
+          npm install --save-dev eslint htmlhint stylelint stylelint-config-standard
+
+      - name: Check frontend formatting
+        run: |
+          npx prettier --check "frontend/**/*.{js,html,css}"
+
+      - name: Lint JavaScript
+        run: |
+          npx eslint "frontend/**/*.js"
+
+      - name: Lint HTML
+        run: |
+          npx htmlhint "frontend/**/*.html"
+
+      - name: Lint CSS
+        run: |
+          npx stylelint "frontend/**/*.css"
