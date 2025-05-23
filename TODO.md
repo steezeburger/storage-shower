@@ -16,6 +16,7 @@ Feature Requests:
 
 Regressions:
 - [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?
+= [ ] server no longer runs on port 8080
 
 Bugs:
 - [x] the debug logs are always shown regardless of flag existence

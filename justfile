@@ -10,9 +10,9 @@ format *args="":
     @(cd backend && go fmt ./...)
     @echo "Formatting frontend code..."
     @if [ "{{args}}" = "--check" ]; then \
-        npx prettier --check "frontend/**/*.{js,html,css}"; \
+        cd frontend && npx prettier --check "*.{js,html,css}" "tests/**/*.{js,html,css}"; \
     else \
-        npx prettier --write "frontend/**/*.{js,html,css}"; \
+        cd frontend && npx prettier --write "*.{js,html,css}" "tests/**/*.{js,html,css}"; \
     fi
 
 # Lint all code
@@ -26,28 +26,28 @@ lint-go:
 # Lint JavaScript
 lint-js:
     @echo "Linting JavaScript..."
-    npx eslint "frontend/**/*.js"
+    @(cd frontend && npx eslint "*.js" "tests/**/*.js")
 
 # Lint HTML
 lint-html:
     @echo "Linting HTML..."
-    npx htmlhint "frontend/**/*.html"
+    @(cd frontend && npx htmlhint "*.html")
 
 # Lint CSS
 lint-css:
     @echo "Linting CSS..."
-    npx stylelint "frontend/**/*.css"
+    @(cd frontend && npx stylelint "*.css")
 
 # Fix linting issues where possible
 lint-fix:
     @echo "Fixing JavaScript linting issues..."
-    npx eslint --fix "frontend/**/*.js"
+    @(cd frontend && npx eslint --fix "*.js" "tests/**/*.js")
     @echo "Fixing CSS linting issues..."
-    npx stylelint --fix "frontend/**/*.css"
+    @(cd frontend && npx stylelint --fix "*.css")
 
 # Run the application
 run *args:
-    go run main.go {{args}}
+    @(cd backend && go run cmd/storage-shower/main.go {{args}})
 
 # Run with debug mode
 debug:
@@ -55,7 +55,7 @@ debug:
 
 # Build the application
 build:
-    go build -o storage-shower main.go
+    @(cd backend && go build -o ../storage-shower cmd/storage-shower/main.go)
 
 # Build macOS application bundle
 bundle app_name="Storage Shower" app_version="1.0.0" app_identifier="com.example.storageShower":
@@ -78,7 +78,7 @@ bundle app_name="Storage Shower" app_version="1.0.0" app_identifier="com.example
 
     # Compile the Go application for macOS
     echo "Compiling Storage Shower..."
-    GOOS=darwin GOARCH=amd64 go build -o "$APP_BUNDLE/Contents/MacOS/storage-shower" main.go
+    (cd backend && GOOS=darwin GOARCH=amd64 go build -o "../$APP_BUNDLE/Contents/MacOS/storage-shower" cmd/storage-shower/main.go)
 
     # Generate Info.plist
     echo '<?xml version="1.0" encoding="UTF-8"?>' > "$APP_BUNDLE/Contents/Info.plist"
@@ -141,15 +141,15 @@ clean:
 
 # Install dependencies
 deps:
-    go mod download
-    npm install
+    @(cd backend && go mod download)
+    @(cd frontend && npm install)
 
 # Install linters
 install-linters:
     @echo "Installing Go linters..."
     go install golang.org/x/lint/golint@latest
     @echo "Installing frontend linters (via npm)..."
-    npm install --save-dev eslint htmlhint stylelint stylelint-config-standard
+    @(cd frontend && npm install --save-dev eslint htmlhint stylelint stylelint-config-standard)
 
 # Run backend tests
 test-backend:
@@ -158,7 +158,7 @@ test-backend:
 
 # Run frontend tests
 test-frontend:
-    npx jest --config frontend/jest.config.js
+    @(cd frontend && npx jest --config jest.config.js)
 
 # Run all tests
 test: test-backend test-frontend
