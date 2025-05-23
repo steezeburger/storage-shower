@@ -1,6 +1,6 @@
 # Storage Shower
 
-![Storage Shower Logo](images/logo_tiny.png)
+![Storage Shower Logo](images/logo_micro.png)
 
 A disk space visualization tool that helps you understand where your storage is being used.
 
