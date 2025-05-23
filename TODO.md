@@ -16,7 +16,8 @@ Feature Requests:
 
 Regressions:
 - [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?
-= [ ] server no longer runs on port 8080
+- [x] server no longer runs on port 8080
+- [ ] localhost/:1 Refused to execute script from 'http://localhost:8080/frontend/app.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.
 
 Bugs:
 - [x] the debug logs are always shown regardless of flag existence

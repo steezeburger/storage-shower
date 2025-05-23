@@ -1,11 +1,9 @@
 package server
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,12 +14,33 @@ import (
 	"github.com/steezeburger/storage-shower/backend/internal/scan"
 )
 
-// FrontendFS holds the embedded frontend files
-var FrontendFS embed.FS
-
-// StartServer starts the HTTP server on a random available port
+// StartServer starts the HTTP server on port 8080
 func StartServer() int {
-	http.HandleFunc("/", serveIndex)
+	// Set up file server for frontend directory
+	fs := http.FileServer(http.Dir("../frontend"))
+
+	// Serve frontend files with explicit MIME types
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			w.Header().Set("Content-Type", "text/html")
+			http.ServeFile(w, r, "../frontend/index.html")
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
+
+	// Set specific MIME types for JavaScript and CSS
+	http.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		http.ServeFile(w, r, "../frontend/app.js")
+	})
+
+	http.HandleFunc("/styles.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		http.ServeFile(w, r, "../frontend/styles.css")
+	})
+
+	// API endpoints
 	http.HandleFunc("/api/scan", handleScan)
 	http.HandleFunc("/api/scan/status", handleScanStatus)
 	http.HandleFunc("/api/scan/stop", handleScanStop)
@@ -30,26 +49,8 @@ func StartServer() int {
 	http.HandleFunc("/api/results", handleResults)
 	http.HandleFunc("/api/previous-scans", handlePreviousScans)
 
-	// Serve static files with proper MIME types
-	http.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		data, _ := FrontendFS.ReadFile("frontend/app.js")
-		w.Write(data)
-	})
-
-	http.HandleFunc("/styles.css", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/css")
-		data, _ := FrontendFS.ReadFile("frontend/styles.css")
-		w.Write(data)
-	})
-
-	// Find an available port
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		log.Fatalf("Failed to find available port: %v", err)
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	listener.Close()
+	// Use port 8080
+	port := 8080
 
 	// Start the server in a goroutine
 	go func() {
@@ -66,17 +67,6 @@ func StartServer() int {
 	openBrowser(fmt.Sprintf("http://localhost:%d", port))
 
 	return port
-}
-
-// serveIndex serves the main HTML page
-func serveIndex(w http.ResponseWriter, r *http.Request) {
-	data, err := FrontendFS.ReadFile("frontend/index.html")
-	if err != nil {
-		http.Error(w, "Could not read index.html", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(data)
 }
 
 // handleScan initiates a new directory scan
@@ -194,7 +184,7 @@ func handleBrowse(w http.ResponseWriter, r *http.Request) {
 		if entry.IsDir() {
 			entryPath := filepath.Join(currentPath, entry.Name())
 			isHidden := fileinfo.IsHidden(entryPath)
-
+			
 			directories = append(directories, DirectoryEntry{
 				Name:     entry.Name(),
 				Path:     entryPath,
@@ -206,9 +196,9 @@ func handleBrowse(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare the response
 	response := struct {
-		CurrentPath string           `json:"currentPath"`
-		ParentPath  string           `json:"parentPath"`
-		Directories []DirectoryEntry `json:"directories"`
+		CurrentPath  string           `json:"currentPath"`
+		ParentPath   string           `json:"parentPath"`
+		Directories  []DirectoryEntry `json:"directories"`
 	}{
 		CurrentPath: currentPath,
 		ParentPath:  filepath.Dir(currentPath),
