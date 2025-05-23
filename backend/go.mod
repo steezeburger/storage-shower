@@ -1,4 +1,4 @@
 module github.com/steezeburger/storage-shower/backend
 
-go 1.18
+go 1.22
 

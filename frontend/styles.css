@@ -217,6 +217,7 @@ input[type="radio"] {
 }
 
 @keyframes fade-out {
+
   0% {
     opacity: 1;
   }

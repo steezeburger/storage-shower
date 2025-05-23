@@ -262,9 +262,8 @@ async function pollScanProgress() {
         const warningEl = document.createElement("div");
         warningEl.id = "stall-warning";
         warningEl.className = "stall-warning";
-        warningEl.innerHTML = `<p>The scan appears to be stalled processing large files or directories.</p>
-           <p>You can <button id="restart-scan-btn" class="btn btn-warning">Stop Scan</button> 
-              or wait for it to complete.</p>`;
+        warningEl.innerHTML = `<p>Scan stalled processing large files or directories.</p>
+           <p><button id="restart-scan-btn" class="btn btn-warning">Stop Scan</button> or wait</p>`;
         progressContainer.appendChild(warningEl);
         document.getElementById("restart-scan-btn").addEventListener("click", stopScan);
       }
