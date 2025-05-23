@@ -5,19 +5,32 @@
 *.so
 *.dylib
 storage-shower
+/storage-shower
 
 # Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool
 *.out
+*.prof
+coverage.html
 
 # Dependency directories
 vendor/
+/vendor/
 
 # macOS build artifacts
 Storage Shower.app/
 *.app/
+*.dmg
+
+# Temporary scan result files
+storage-shower-*.json
+
+# Log files
+*.log
+log/
+logs/
 
 # macOS system files
 .DS_Store
@@ -31,6 +44,30 @@ Thumbs.db
 # IDE directories
 .idea/
 .vscode/
+*.sublime-workspace
+*.sublime-project
+.vscode-test/
+
+# Environment files
+.env
+.env.local
+.envrc
+
+# Debug files
+debug
+__debug_bin
 
 # Go workspace file
 go.work
+go.work.sum
+
+# Node modules (for frontend development)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build and distribution directories
+dist/
+build/
+out/
