@@ -6,7 +6,7 @@ Feature Requests:
 - [x] i want to see the logo from images/logo.jpeg in the README.md but please convert the file to a png first
 - [x] i do not want to ignore hidden files by default
 - [x] i want the browse button to open up a file explorer so i can select a directory
-- [ ] the project should have a code formatter. use defaults of the most popular formatter for the language.
+- [x] the project should have a code formatter. use defaults of the most popular formatter for the language.
 - [ ] the project should have a linter
 - [ ] the project should have backend tests
 - [ ] the project should have frontend tests

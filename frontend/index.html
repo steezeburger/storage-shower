@@ -1,74 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Storage Shower</title>
-    <link rel="stylesheet" href="/frontend/styles.css">
+    <link rel="stylesheet" href="/frontend/styles.css" />
     <script src="https://d3js.org/d3.v7.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="app-container">
-        <header>
-            <h1>Storage Shower</h1>
-        </header>
+      <header>
+        <h1>Storage Shower</h1>
+      </header>
 
-        <div class="controls">
-            <div class="path-controls">
-                <input type="text" id="path-input" placeholder="Path to scan">
-                <button id="browse-btn">Browse</button>
-                <button id="home-btn">Home</button>
-                <button id="scan-btn">Scan</button>
-                <button id="stop-btn" disabled>Stop</button>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="ignore-hidden">
-                    Ignore Hidden Files
-                </label>
-            </div>
-            <div class="viz-controls">
-                <label class="radio-label">
-                    <input type="radio" name="viz-type" value="treemap" checked>
-                    Treemap
-                </label>
-                <label class="radio-label">
-                    <input type="radio" name="viz-type" value="sunburst">
-                    Sunburst
-                </label>
-            </div>
+      <div class="controls">
+        <div class="path-controls">
+          <input type="text" id="path-input" placeholder="Path to scan" />
+          <button id="browse-btn">Browse</button>
+          <button id="home-btn">Home</button>
+          <button id="scan-btn">Scan</button>
+          <button id="stop-btn" disabled>Stop</button>
+          <label class="checkbox-label">
+            <input type="checkbox" id="ignore-hidden" />
+            Ignore Hidden Files
+          </label>
         </div>
+        <div class="viz-controls">
+          <label class="radio-label">
+            <input type="radio" name="viz-type" value="treemap" checked />
+            Treemap
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="viz-type" value="sunburst" />
+            Sunburst
+          </label>
+        </div>
+      </div>
 
-        <div id="progress-container" class="hidden">
-            <div class="progress-bar">
-                <div id="progress-bar-fill"></div>
-            </div>
-            <div id="progress-info">
-                <span id="scanned-items">0</span> / <span id="total-items">0</span> items
-                (<span id="progress-percent">0.0%</span>)
-            </div>
-            <div id="current-path">...</div>
+      <div id="progress-container" class="hidden">
+        <div class="progress-bar">
+          <div id="progress-bar-fill"></div>
         </div>
+        <div id="progress-info">
+          <span id="scanned-items">0</span> / <span id="total-items">0</span> items (<span
+            id="progress-percent"
+            >0.0%</span
+          >)
+        </div>
+        <div id="current-path">...</div>
+      </div>
 
-        <div class="main-container">
-            <div id="visualization"></div>
-            <div id="details-panel">
-                <h3>Details</h3>
-                <div id="selected-path" title="Click to copy path to clipboard">No item selected</div>
-                <div id="selected-size">-</div>
-                <div id="selected-type">-</div>
-                <div id="breadcrumbs"></div>
-            </div>
+      <div class="main-container">
+        <div id="visualization"></div>
+        <div id="details-panel">
+          <h3>Details</h3>
+          <div id="selected-path" title="Click to copy path to clipboard">No item selected</div>
+          <div id="selected-size">-</div>
+          <div id="selected-type">-</div>
+          <div id="breadcrumbs"></div>
         </div>
+      </div>
 
-        <div id="breadcrumb-trail"></div>
-        
-        <div id="previous-scans-container" class="hidden">
-            <h3>Previous Scans</h3>
-            <div id="previous-scans-list">
-                <!-- Previous scans will be listed here -->
-            </div>
+      <div id="breadcrumb-trail"></div>
+
+      <div id="previous-scans-container" class="hidden">
+        <h3>Previous Scans</h3>
+        <div id="previous-scans-list">
+          <!-- Previous scans will be listed here -->
         </div>
+      </div>
     </div>
 
     <script src="/frontend/app.js"></script>
-</body>
+  </body>
 </html>

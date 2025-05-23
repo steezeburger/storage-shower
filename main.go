@@ -580,7 +580,7 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 		rootPath = absPath
 	}
 	log.Printf("Normalized path: %s", rootPath)
-	
+
 	rootInfo, err := os.Stat(rootPath)
 	if err != nil {
 		log.Printf("Failed to stat root path %s: %v", rootPath, err)
@@ -596,7 +596,7 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 
 	rootName := filepath.Base(rootPath)
 	log.Printf("Root name: %s", rootName)
-	
+
 	root := FileInfo{
 		Name:  rootName,
 		Path:  rootPath,
@@ -691,8 +691,8 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 				IsDir: entry.IsDir(),
 				Size:  initialSize, // Only set size for files, directories will accumulate
 			}
-			
-			log.Printf("Created FileInfo: name=%s, path=%s, isDir=%v, initialSize=%d", 
+
+			log.Printf("Created FileInfo: name=%s, path=%s, isDir=%v, initialSize=%d",
 				fileInfo.Name, fileInfo.Path, fileInfo.IsDir, fileInfo.Size)
 
 			// Update progress
@@ -874,12 +874,12 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 	}
 
 	log.Printf("Fixing directory size for: %s", dir.Path)
-	
+
 	var totalSize int64 = 0
 	for i := range dir.Children {
-		log.Printf("  Child %d: %s (initial size: %d, isDir: %v)", 
+		log.Printf("  Child %d: %s (initial size: %d, isDir: %v)",
 			i, dir.Children[i].Path, dir.Children[i].Size, dir.Children[i].IsDir)
-		
+
 		childSize := dir.Children[i].Size
 		if dir.Children[i].IsDir {
 			// Recursively fix child directory sizes
@@ -905,7 +905,7 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 	}
 
 	log.Printf("  Total size for %s: %d bytes", dir.Path, totalSize)
-	
+
 	// Set this directory's size to the sum of its children
 	dir.Size = totalSize
 	return totalSize

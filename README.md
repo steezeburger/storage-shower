@@ -29,6 +29,8 @@ A disk space visualization tool that helps you understand where your storage is 
 
 - Go 1.16 or later
 - Git
+- Node.js and npm (for frontend formatting)
+- Just command runner (optional, for development tasks)
 
 ### Building from Source
 
@@ -36,6 +38,33 @@ A disk space visualization tool that helps you understand where your storage is 
 2. Install dependencies: `go mod download`
 3. Run the application: `go run main.go`
 4. For debugging, use: `go run main.go --debug`
+
+### Code Formatting
+
+The codebase uses automatic formatters to maintain consistent code style:
+
+- **Go code**: Formatted with `go fmt`
+- **Frontend code**: Formatted with Prettier (HTML, CSS, JavaScript)
+
+To format all code, run:
+
+```bash
+just format
+```
+
+If you don't have Just installed, you can run the formatters directly:
+
+```bash
+# Format Go code
+go fmt ./...
+
+# Format frontend code
+npx prettier --write "frontend/**/*.{js,html,css}"
+```
+
+Configuration files:
+- `.prettierrc` - Configuration for Prettier
+- `.editorconfig` - Editor configuration for consistent formatting
 
 ## Usage
 
@@ -47,6 +76,37 @@ A disk space visualization tool that helps you understand where your storage is 
 6. Click on directories to navigate deeper
 7. Use the breadcrumb trail to navigate back up
 8. Switch between treemap and sunburst visualizations as needed
+
+## Development
+
+### Code Formatting
+
+We maintain consistent code style using automatic formatters:
+
+- Go code is formatted with `go fmt`, the standard Go formatter
+- Frontend code (HTML, CSS, JavaScript) is formatted with Prettier
+- A `.editorconfig` file ensures consistent formatting across different editors
+
+To format all code in the project, run:
+
+```bash
+just format
+```
+
+### Development Tasks
+
+We use the Just command runner for common development tasks. Available tasks:
+
+```bash
+just                # Show available commands
+just format         # Format all code
+just run            # Run the application
+just debug          # Run with debug mode
+just build          # Build the application
+just bundle         # Build macOS application bundle
+just clean          # Clean build artifacts
+just deps           # Install dependencies
+```
 
 ## Implementation Details
 
