@@ -170,7 +170,6 @@ describe("formatBytes Function", () => {
 describe("Clipboard Functionality", () => {
   // Mock the clipboard API
   const originalClipboard = { ...global.navigator.clipboard };
-  let clipboardText = "";
 
   beforeEach(() => {
     document.body.innerHTML = `
@@ -180,10 +179,7 @@ describe("Clipboard Functionality", () => {
 
     // Mock clipboard API
     global.navigator.clipboard = {
-      writeText: jest.fn((text) => {
-        clipboardText = text;
-        return Promise.resolve();
-      }),
+      writeText: jest.fn(() => Promise.resolve()),
     };
 
     // Add mock functions

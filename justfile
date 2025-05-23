@@ -33,7 +33,7 @@ lint-js:
 # Lint HTML
 lint-html:
     @echo "Linting HTML..."
-    @(cd frontend && npm lint-html)
+    @(cd frontend && npm run lint-html)
 
 # Lint CSS
 lint-css:

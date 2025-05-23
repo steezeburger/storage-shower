@@ -16,7 +16,6 @@ const visualizationContainer = document.getElementById("visualization");
 const selectedPathText = document.getElementById("selected-path");
 const selectedSizeText = document.getElementById("selected-size");
 const selectedTypeText = document.getElementById("selected-type");
-const breadcrumbsContainer = document.getElementById("breadcrumbs");
 const breadcrumbTrail = document.getElementById("breadcrumb-trail");
 const previousScansContainer = document.getElementById("previous-scans-container");
 const previousScansList = document.getElementById("previous-scans-list");
@@ -25,7 +24,7 @@ const previousScansList = document.getElementById("previous-scans-list");
 let currentData = null;
 let currentPath = [];
 let vizType = "treemap";
-let scanning = false;
+// scanning state is managed by UI updates
 let progressInterval = null;
 let previousScans = [];
 
@@ -155,9 +154,9 @@ async function browseDirectory() {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    if (data.path) {
-      pathInput.value = data.path;
+    const result = await response.json();
+    if (result.path) {
+      pathInput.value = result.path;
     }
   } catch (error) {
     alert("Error browsing for directory: " + error.message);
@@ -172,12 +171,12 @@ async function setHomeDirectory() {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    if (data.home) {
-      pathInput.value = data.home;
+    const result = await response.json();
+    if (result.home) {
+      pathInput.value = result.home;
     }
   } catch (error) {
-    alert("Error getting home directory: " + error.message);
+    alert("Error setting home directory: " + error.message);
   }
 }
 
@@ -191,14 +190,13 @@ async function startScan() {
   }
 
   // Prepare request data
-  const data = {
+  const requestData = {
     path: path,
     ignoreHidden: ignoreHiddenCheckbox.checked,
   };
 
   try {
     // Update UI
-    scanning = true;
     updateScanningUI(true);
 
     // Send scan request
@@ -207,21 +205,21 @@ async function startScan() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(requestData),
     });
 
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
 
-    const result = await response.json();
+    await response.json();
 
     // Start polling for scan progress
     progressInterval = setInterval(pollScanProgress, 500);
   } catch (error) {
     // Handle error when starting scan
     alert("Error starting scan: " + error.message);
-    scanning = false;
+
     updateScanningUI(false);
   }
 }
@@ -236,11 +234,10 @@ async function pollScanProgress() {
       // Scan is complete or was stopped
       clearInterval(progressInterval);
       progressInterval = null;
-      scanning = false;
       updateScanningUI(false);
 
       // Wait a moment to ensure the data is ready, then fetch the result
-      setTimeout(() => fetchScanResult(), 1000);
+      setTimeout(fetchScanResult, 500);
       return;
     }
 
@@ -256,17 +253,19 @@ async function pollScanProgress() {
     // Check if scan is stalled
     if (data.stalled) {
       // Alert user that scan appears to be stalled
-      currentPathText.innerHTML = `<span style="color: orange; font-weight: bold;">STALLED: ${progress.currentPath}</span>`;
+      const stalledMsg = `STALLED: ${progress.currentPath}`;
+      const styledMsg = `<span style="color: orange; font-weight: bold;">${stalledMsg}</span>`;
+      currentPathText.innerHTML = styledMsg;
 
       // Show option to stop scan if stalled
       if (!document.getElementById("stall-warning")) {
         const warningEl = document.createElement("div");
         warningEl.id = "stall-warning";
         warningEl.className = "stall-warning";
-        warningEl.innerHTML = `
-                    <p>The scan appears to be stalled processing large files or directories.</p>
-                    <p>You can <button id="restart-scan-btn" class="btn btn-warning">Stop Scan</button> or wait for it to complete.</p>
-                `;
+        warningEl.innerHTML = 
+          `<p>The scan appears to be stalled processing large files or directories.</p>
+           <p>You can <button id="restart-scan-btn" class="btn btn-warning">Stop Scan</button> 
+              or wait for it to complete.</p>`;
         progressContainer.appendChild(warningEl);
         document.getElementById("restart-scan-btn").addEventListener("click", stopScan);
       }
@@ -282,9 +281,8 @@ async function pollScanProgress() {
 // Stop an in-progress scan
 async function stopScan() {
   try {
-    const response = await fetch("/api/scan/stop", { method: "POST" });
-    const data = await response.json();
-
+    await fetch("/api/scan/stop", { method: "POST" });
+    
     // Clear the progress interval
     if (progressInterval) {
       clearInterval(progressInterval);
@@ -314,22 +312,22 @@ async function fetchScanResult(resultId = null) {
       return;
     }
 
-    const data = await response.json();
+    const result = await response.json();
 
     // Reset current path
     currentPath = [];
 
     // Store the data
-    currentData = data;
+    currentData = result;
 
     // Render the visualization
-    renderVisualization(data);
+    renderVisualization(result);
 
     // Show the visualization container
     visualizationContainer.style.display = "block";
 
     // Update details panel with root directory
-    updateDetailsPanel(data);
+    updateDetailsPanel(result);
 
     // Show the breadcrumb trail
     breadcrumbTrail.style.display = "block";
@@ -569,7 +567,7 @@ function renderSunburst(data) {
     .attr("transform", `translate(${width / 2},${height / 2})`);
 
   // Create paths for each data point
-  const path = svg
+  svg
     .selectAll("path")
     .data(root.descendants().filter((d) => d.depth))
     .enter()
@@ -601,7 +599,7 @@ function renderSunburst(data) {
     });
 
   // Add labels for larger segments
-  const label = svg
+  svg
     .selectAll("text")
     .data(
       root
@@ -612,7 +610,6 @@ function renderSunburst(data) {
     .append("text")
     .attr("transform", (d) => {
       const x = (d.x0 + d.x1) / 2;
-      const y = (d.y0 + d.y1) / 2;
       const rotation = (x - Math.PI / 2) * (180 / Math.PI);
       return `translate(${arc.centroid(d)}) rotate(${rotation})`;
     })
@@ -687,7 +684,7 @@ function updateBreadcrumbs() {
 
   // Add path segments
   const pathSoFar = [];
-  currentPath.forEach((segment, index) => {
+  currentPath.forEach((segment) => {
     pathSoFar.push(segment);
 
     const breadcrumb = document.createElement("span");
@@ -868,7 +865,7 @@ function copyPathToClipboard() {
 // Fetch and display previous scans
 async function fetchPreviousScans() {
   try {
-    const response = await fetch("/api/previous-scans");
+    const response = await fetch("/api/scans");
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
@@ -877,8 +874,8 @@ async function fetchPreviousScans() {
 
     // Store scans in state
     previousScans = scans;
-
-    // Display previous scans
+    
+    // Display the scans
     displayPreviousScans();
   } catch (error) {
     // Handle error when fetching previous scans
