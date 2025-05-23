@@ -1,6 +1,8 @@
 # Storage Shower
 
-A macOS disk space visualization tool that helps you understand where your storage is being used.
+A disk space visualization tool that helps you understand where your storage is being used.
+
+![Storage Shower Screenshot](images/screen1.png)
 
 ## Features
 
@@ -10,12 +12,14 @@ A macOS disk space visualization tool that helps you understand where your stora
 - Detailed information for selected items
 - Navigation through visualizations and breadcrumb trail
 - Option to ignore hidden files
+- Cancel scanning at any time
+- Debugging mode for troubleshooting
 
 ## Technology Stack
 
 - **Backend**: Go for filesystem scanning and API
 - **Frontend**: HTML, CSS, JavaScript with D3.js for visualizations
-- **Integration**: webview for native macOS window
+- **Embedded Web**: Serves a web application locally in your browser
 
 ## Building the Application
 
@@ -28,17 +32,19 @@ A macOS disk space visualization tool that helps you understand where your stora
 
 1. Clone the repository
 2. Install dependencies: `go mod download`
-3. Build the application: `./build.sh`
-4. The application will be available as `Storage Shower.app`
+3. Run the application: `go run main.go`
+4. For debugging, use: `go run main.go --debug`
 
 ## Usage
 
 1. Launch the application
 2. Enter a path to scan or click "Home" to start from your home directory
 3. Click "Scan" to begin analyzing disk usage
-4. Once the scan completes, explore your disk usage through the interactive visualization
-5. Click on directories to navigate deeper
-6. Use the breadcrumb trail to navigate back up
+4. While scanning, you can click "Stop" to cancel at any time
+5. Once the scan completes, explore your disk usage through the interactive visualization
+6. Click on directories to navigate deeper
+7. Use the breadcrumb trail to navigate back up
+8. Switch between treemap and sunburst visualizations as needed
 
 ## Implementation Details
 
@@ -48,7 +54,6 @@ A macOS disk space visualization tool that helps you understand where your stora
 - **frontend/index.html**: HTML structure for the visualization UI
 - **frontend/styles.css**: CSS styling for the application
 - **frontend/app.js**: JavaScript for D3.js visualizations and UI interaction
-- **build.sh**: Build script for packaging the macOS application
 
 ### Visualizations
 
@@ -68,3 +73,12 @@ A macOS disk space visualization tool that helps you understand where your stora
 ## License
 
 This project is open source software.
+
+## Troubleshooting
+
+If you encounter issues with file size calculations or scanning:
+
+1. Run with debug mode: `go run main.go --debug`
+2. Check the console output for detailed logging
+3. For very large directories, scanning may take some time or stall on certain files
+4. Use the Stop button to cancel a scan that's taking too long
