@@ -1,5 +1,7 @@
 # Storage Shower
 
+<img src="images/logo.png" alt="Storage Shower Logo" width="200"/>
+
 A disk space visualization tool that helps you understand where your storage is being used.
 
 ![Storage Shower Screenshot](images/screen1.png)
