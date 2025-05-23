@@ -688,8 +688,13 @@ function formatBytes(bytes, decimals = 2) {
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
   const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  // Special case for bytes to not show decimal places
+  if (i === 0) {
+    return Math.floor(bytes) + " " + sizes[i];
+  }
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  return (bytes / Math.pow(k, i)).toFixed(dm) + " " + sizes[i];
 }
 
 function copyPathToClipboard() {
