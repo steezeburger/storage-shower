@@ -15,15 +15,14 @@
     "linebreak-style": ["error", "unix"],
     "quotes": ["error", "double"],
     "semi": ["error", "always"],
-    "no-unused-vars": ["warn"],
+    "no-unused-vars": ["error"],
     "no-console": ["warn", { "allow": ["warn", "error"] }],
-    "camelcase": ["warn"],
     "max-len": ["warn", { "code": 100 }],
     "no-multiple-empty-lines": ["error", { "max": 2 }],
     "eqeqeq": ["error", "always"],
     "curly": ["error", "all"],
     "brace-style": ["error", "1tbs"],
-    "prefer-const": ["warn"],
-    "arrow-body-style": ["warn", "as-needed"]
+    "prefer-const": ["error"],
+    "arrow-body-style": ["error", "as-needed"]
   }
 }
