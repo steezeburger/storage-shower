@@ -188,8 +188,18 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 // handleScanStatus returns the current scan status
 func handleScanStatus(w http.ResponseWriter, r *http.Request) {
 	status := scan.GetScanStatus()
+	
+	// Create a response with the correct structure expected by the frontend
+	response := struct {
+		InProgress bool         `json:"inProgress"`
+		Progress   scan.ScanStatus `json:"progress"`
+	}{
+		InProgress: status.InProgress,
+		Progress:   status,
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	json.NewEncoder(w).Encode(response)
 }
 
 // handleScanStop cancels an in-progress scan

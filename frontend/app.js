@@ -22,7 +22,6 @@ const previousScansContainer = document.getElementById("previous-scans-container
 const previousScansList = document.getElementById("previous-scans-list");
 
 // Application state
-// Variables to store state
 let currentData = null;
 let currentPath = [];
 let vizType = "treemap";
@@ -41,58 +40,40 @@ const typeColors = {
   other: "#95a5a6",
 };
 
-// File type mappings
+// Map file extensions to types
 const fileTypeMappings = {
-  image: ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp", "tiff", "ico", "heic"],
-  video: ["mp4", "mov", "avi", "mkv", "wmv", "flv", "webm", "m4v", "mpg", "mpeg"],
-  audio: ["mp3", "wav", "ogg", "flac", "aac", "m4a", "wma", "aiff"],
-  document: [
-    "pdf",
-    "doc",
-    "docx",
-    "xls",
-    "xlsx",
-    "ppt",
-    "pptx",
-    "txt",
-    "rtf",
-    "md",
-    "csv",
-    "json",
-    "xml",
-    "html",
-    "css",
-    "js",
-    "ts",
-    "go",
-    "py",
-    "java",
-    "c",
-    "cpp",
-    "h",
-    "rb",
-    "php",
-  ],
-  archive: ["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso", "dmg"],
+  // Images
+  jpg: "image", jpeg: "image", png: "image", gif: "image", webp: "image",
+  svg: "image", bmp: "image", tiff: "image", ico: "image", heic: "image",
+  
+  // Videos
+  mp4: "video", avi: "video", mov: "video", wmv: "video", mkv: "video",
+  webm: "video", flv: "video", m4v: "video", mpg: "video", mpeg: "video",
+  
+  // Audio
+  mp3: "audio", wav: "audio", ogg: "audio", flac: "audio", aac: "audio",
+  m4a: "audio", wma: "audio", opus: "audio",
+  
+  // Documents
+  pdf: "document", doc: "document", docx: "document", xls: "document", xlsx: "document",
+  ppt: "document", pptx: "document", txt: "document", rtf: "document", md: "document",
+  csv: "document", json: "document", xml: "document", html: "document", htm: "document",
+  
+  // Archives
+  zip: "archive", rar: "archive", "7z": "archive", tar: "archive", gz: "archive",
+  bz2: "archive", xz: "archive", iso: "archive", dmg: "archive",
 };
 
 // Initialize the application
 function init() {
-  console.log("Initializing Storage Shower application...");
-  console.log("DOM elements found:", {
-    pathInput: !!pathInput,
-    browseBtn: !!browseBtn,
-    scanBtn: !!scanBtn,
-    stopBtn: !!stopBtn,
-    homeBtn: !!homeBtn,
-  });
-
   // Set up event listeners
-  homeBtn.addEventListener("click", setHomeDirectory);
   browseBtn.addEventListener("click", browseDirectory);
+  homeBtn.addEventListener("click", setHomeDirectory);
   scanBtn.addEventListener("click", startScan);
   stopBtn.addEventListener("click", stopScan);
-  vizTypeRadios.forEach((radio) => {
+  
+  // Listen for visualization type changes
+  vizTypeRadios.forEach(radio => {
     radio.addEventListener("change", (e) => {
       vizType = e.target.value;
       if (currentData) {
@@ -100,94 +81,104 @@ function init() {
       }
     });
   });
-
-  console.log("Event listeners attached");
-
-  // Add click event for copying file path
+  
+  // Set up click handler for path text to copy
   selectedPathText.addEventListener("click", copyPathToClipboard);
-
+  
+  // Set initial home directory
+  setHomeDirectory();
+  
   // Fetch previous scans
   fetchPreviousScans();
-
-  // Get home directory on load
-  setHomeDirectory();
+  
+  // Set up keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+    // Escape key navigates up one level
+    if (e.key === "Escape" && currentPath.length > 0) {
+      currentPath.pop();
+      renderVisualization(currentData);
+    }
+    
+    // Enter key starts scan when path input is focused
+    if (e.key === "Enter" && document.activeElement === pathInput) {
+      startScan();
+    }
+  });
 }
 
-// Open file dialog to select a directory
+// Browse for a directory
 async function browseDirectory() {
-  console.log("Browse button clicked");
   try {
     const response = await fetch("/api/browse");
     if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${await response.text()}`);
+      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
-
+    
     const data = await response.json();
-    console.log("Selected directory:", data.path);
-
-    // Update the path input with the selected directory
-    pathInput.value = data.path;
+    if (data.path) {
+      pathInput.value = data.path;
+    }
   } catch (error) {
-    console.error("Error browsing directory:", error);
-    alert("Failed to open directory browser. Please manually enter the directory path.");
+    alert("Error browsing for directory: " + error.message);
   }
 }
 
+// Set home directory in the path input
 async function setHomeDirectory() {
   try {
     const response = await fetch("/api/home");
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+    }
+    
     const data = await response.json();
-
-    pathInput.value = data.home;
-    console.log("Home directory set:", data.home);
+    if (data.home) {
+      pathInput.value = data.home;
+    }
   } catch (error) {
-    console.error("Error getting home directory:", error);
+    alert("Error getting home directory: " + error.message);
   }
 }
 
-// Start scanning the specified directory
+// Start a new scan
 async function startScan() {
+  // Validate path
   const path = pathInput.value.trim();
-  console.log("startScan called with path:", path);
-
   if (!path) {
-    console.log("Scan aborted: empty path");
-    alert("Please enter a valid path");
+    alert("Please enter a directory path");
     return;
   }
-
+  
+  // Prepare request data
+  const data = {
+    path: path,
+    ignoreHidden: ignoreHiddenCheckbox.checked,
+  };
+  
   try {
-    console.log("Starting scan...", { path, ignoreHidden: ignoreHiddenCheckbox.checked });
+    // Update UI
     scanning = true;
     updateScanningUI(true);
-
+    
+    // Send scan request
     const response = await fetch("/api/scan", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        path: path,
-        ignoreHidden: ignoreHiddenCheckbox.checked,
-      }),
+      body: JSON.stringify(data),
     });
-
-    console.log("Scan API response status:", response.status);
-
+    
     if (!response.ok) {
-      const error = await response.text();
-      console.error("Scan API error:", error);
-      throw new Error(error);
+      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
-
+    
     const result = await response.json();
-    console.log("Scan started successfully:", result);
-
+    
     // Start polling for scan progress
-    console.log("Starting progress polling...");
     progressInterval = setInterval(pollScanProgress, 500);
   } catch (error) {
-    console.error("Error starting scan:", error);
+    // Handle error when starting scan
     alert("Error starting scan: " + error.message);
     scanning = false;
     updateScanningUI(false);
@@ -202,22 +193,20 @@ async function pollScanProgress() {
 
     if (!data.inProgress) {
       // Scan is complete or was stopped
-      console.log("Scan completed, stopping progress polling");
       clearInterval(progressInterval);
       progressInterval = null;
       scanning = false;
       updateScanningUI(false);
 
       // Wait a moment to ensure the data is ready, then fetch the result
-      console.log("Fetching scan results in 1 second...");
       setTimeout(() => fetchScanResult(), 1000);
       return;
     }
 
     // Update progress UI
     const progress = data.progress;
-    scannedItemsText.textContent = data.progress.scannedItems;
-    totalItemsText.textContent = data.progress.totalItems;
+    scannedItemsText.textContent = progress.scannedItems;
+    totalItemsText.textContent = progress.totalItems;
     const percentage = (progress.progress * 100).toFixed(1);
     progressPercentText.textContent = percentage + "%";
     progressBarFill.style.width = percentage + "%";
@@ -225,7 +214,7 @@ async function pollScanProgress() {
 
     // Check if scan is stalled
     if (data.stalled) {
-      console.warn("Scan appears to be stalled");
+      // Alert user that scan appears to be stalled
       currentPathText.innerHTML = `<span style="color: orange; font-weight: bold;">STALLED: ${progress.currentPath}</span>`;
 
       // Show option to stop scan if stalled
@@ -245,91 +234,101 @@ async function pollScanProgress() {
       document.getElementById("stall-warning").remove();
     }
   } catch (error) {
-    console.error("Error polling scan progress:", error);
+    // Handle error when polling for scan progress
   }
 }
 
-// Stop the current scan
+// Stop an in-progress scan
 async function stopScan() {
-  console.log("Stop scan requested");
   try {
     const response = await fetch("/api/scan/stop", { method: "POST" });
-    console.log("Stop scan response:", response.status);
-    // The poll will detect when the scan is stopped
+    const data = await response.json();
+    
+    // Clear the progress interval
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
   } catch (error) {
-    console.error("Error stopping scan:", error);
+    alert("Error stopping scan: " + error.message);
   }
 }
 
 // Fetch scan result data
 async function fetchScanResult(resultId = null) {
-  console.log("Fetching scan results...");
   try {
     let url = "/api/results";
     if (resultId) {
       url += `?id=${resultId}`;
     }
-
+    
     const response = await fetch(url);
+    
     if (!response.ok) {
-      // If no results are available yet, try again after a short delay
       if (response.status === 404) {
-        console.log("Results not ready yet, retrying in 500ms...");
-        setTimeout(fetchScanResult, 500);
-        return;
+        alert("No scan results available. Please run a scan first.");
+      } else {
+        throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
       }
-      const errorText = await response.text();
-      console.error("Failed to fetch results:", errorText);
-      throw new Error(`Error ${response.status}: ${errorText}`);
+      return;
     }
-
+    
     const data = await response.json();
-    console.log("Scan results received:", data);
-    // Log root size and children sizes for debugging
-    console.log("Root size:", data.size);
-    console.log("Root children:", data.children ? data.children.length : 0);
-    if (data.children) {
-      data.children.forEach((child) => {
-        console.log(`Child: ${child.name}, Size: ${child.size}, IsDir: ${child.isDir}`);
-      });
-    }
-    currentData = data;
+    
+    // Reset current path
     currentPath = [];
-    renderVisualization(currentData);
-
-    // Refresh previous scans list if we just completed a new scan
+    
+    // Store the data
+    currentData = data;
+    
+    // Render the visualization
+    renderVisualization(data);
+    
+    // Show the visualization container
+    visualizationContainer.style.display = "block";
+    
+    // Update details panel with root directory
+    updateDetailsPanel(data);
+    
+    // Show the breadcrumb trail
+    breadcrumbTrail.style.display = "block";
+    
+    // Update breadcrumbs
+    updateBreadcrumbs();
+    
+    // If this is a new scan, refresh the previous scans list
     if (!resultId) {
       fetchPreviousScans();
     }
   } catch (error) {
-    console.error("Error fetching scan result:", error);
+    // Handle error when fetching scan results
     alert("Error fetching scan results: " + error.message);
   }
 }
 
-// Update UI elements based on scanning state
+// Update UI during scanning
 function updateScanningUI(isScanning) {
-  console.log("Updating scanning UI, isScanning:", isScanning);
-  scanBtn.disabled = isScanning;
-  stopBtn.disabled = !isScanning;
-  progressContainer.classList.toggle("hidden", !isScanning);
-
-  // Hide previous scans container during scanning
   if (isScanning) {
-    previousScansContainer.classList.add("hidden");
-
+    // Update button states
+    scanBtn.disabled = true;
+    stopBtn.disabled = false;
+    
+    // Show progress container
+    progressContainer.classList.remove("hidden");
+    
     // Reset progress indicators
     progressBarFill.style.width = "0%";
     scannedItemsText.textContent = "0";
     totalItemsText.textContent = "0";
     progressPercentText.textContent = "0.0%";
-    currentPathText.textContent = "";
-
-    // Remove any stall warnings that might exist
-    const stallWarning = document.getElementById("stall-warning");
-    if (stallWarning) {
-      stallWarning.remove();
-    }
+    currentPathText.textContent = "Starting scan...";
+  } else {
+    // Update button states
+    scanBtn.disabled = false;
+    stopBtn.disabled = true;
+    
+    // Hide progress container
+    progressContainer.classList.add("hidden");
   }
 }
 
@@ -355,21 +354,16 @@ function renderTreemap(data) {
   const width = visualizationContainer.clientWidth;
   const height = visualizationContainer.clientHeight;
 
-  console.log("Rendering treemap with data:", data);
-  console.log("Root size before hierarchy:", data.size);
-
   // Create a hierarchy from the data
   const hierarchy = d3
     .hierarchy(data)
     .sum((d) => {
-      console.log(`Summing: ${d.name}, Size: ${d.size}, IsDir: ${d.isDir}`);
       return d.size > 0 ? d.size : 0; // Ensure we use all sizes, not just files
     })
     .sort((a, b) => b.value - a.value);
 
-  console.log("Hierarchy after sum:", hierarchy);
-
   // If we're navigating to a subdirectory, filter the data
+  let currentHierarchy = hierarchy;
   if (currentPath.length > 0) {
     let currentNode = hierarchy;
     for (const segment of currentPath) {
@@ -377,7 +371,7 @@ function renderTreemap(data) {
       if (!nextNode) break;
       currentNode = nextNode;
     }
-    hierarchy = currentNode;
+    currentHierarchy = currentNode;
   }
 
   // Create treemap layout
@@ -390,7 +384,7 @@ function renderTreemap(data) {
     .round(true);
 
   // Generate the treemap data
-  const root = treemap(hierarchy);
+  const root = treemap(currentHierarchy);
 
   // Create SVG element
   const svg = d3
@@ -399,7 +393,7 @@ function renderTreemap(data) {
     .attr("width", width)
     .attr("height", height)
     .style("font-family", "sans-serif");
-
+  
   // Create cells for each data point
   const cell = svg
     .selectAll("g")
@@ -410,7 +404,10 @@ function renderTreemap(data) {
     .on("click", function (event, d) {
       // Navigate deeper on click if it's a directory
       if (d.data.isDir && d.children && d.depth > 0) {
-        currentPath.push(d.data.name);
+        // Create a new array with a copy of the current path plus the new item
+        const newPath = [...currentPath];
+        newPath.push(d.data.name);
+        currentPath = newPath;
         renderVisualization(data);
       }
 
@@ -419,42 +416,61 @@ function renderTreemap(data) {
     });
 
   // Add rectangles for each cell - either solid color or multi-colored pattern
-  cell.each(function (d) {
-    const cellGroup = d3.select(this);
-    const width = d.x1 - d.x0;
-    const height = d.y1 - d.y0;
-
-    if (d.data.isDir && d.data.fileTypes) {
-      // Create multi-colored rectangle for directories with file type data
-      renderMultiColoredBox(cellGroup, width, height, d.data.fileTypes);
-    } else {
-      // Single color rectangle for files or directories without file type data
-      cellGroup
-        .append("rect")
-        .attr("class", "node")
-        .attr("width", width)
-        .attr("height", height)
-        .attr("fill", d.data.isDir ? typeColors.directory : getFileTypeColor(d.data.extension));
-    }
-  });
-
-  // Add labels for cells that are large enough
   cell
-    .append("text")
-    .attr("class", "node-label")
-    .selectAll("tspan")
-    .data((d) => {
-      const width = d.x1 - d.x0;
-      const height = d.y1 - d.y0;
-      if (width < 30 || height < 20) return []; // Skip small cells
+    .filter((d) => d.depth === 1)
+    .append("rect")
+    .attr("id", (d) => `rect-${d.data.name.replace(/\s+/g, "-")}`)
+    .attr("width", (d) => d.x1 - d.x0)
+    .attr("height", (d) => d.y1 - d.y0)
+    .attr("fill", (d) => {
+      if (d.data.isDir) {
+        // For directories, use a standard color
+        return typeColors.directory;
+      } else if (d.data.fileTypes) {
+        // For directories with file type stats, use a multi-colored pattern
+        renderMultiColoredBox(
+          `rect-${d.data.name.replace(/\s+/g, "-")}`,
+          d.x1 - d.x0,
+          d.y1 - d.y0,
+          d.data.fileTypes
+        );
+        return `url(#pattern-${d.data.name.replace(/\s+/g, "-")})`;
+      } else {
+        // For files, color by extension
+        return getFileTypeColor(d.data.extension);
+      }
+    });
 
-      return [d.data.name, formatBytes(d.value)];
+  // Add title for each cell
+  cell
+    .filter((d) => d.depth === 1)
+    .append("text")
+    .attr("x", 3)
+    .attr("y", 14)
+    .text((d) => {
+      let name = d.data.name;
+      // Truncate long names
+      const maxLength = Math.floor((d.x1 - d.x0) / 8); // Approximate chars that fit
+      if (name.length > maxLength) {
+        name = name.substring(0, maxLength - 3) + "...";
+      }
+      return name;
     })
-    .enter()
-    .append("tspan")
-    .attr("x", 4)
-    .attr("y", (d, i) => 13 + i * 10)
-    .text((d) => d);
+    .attr("fill", "white")
+    .attr("font-weight", "bold")
+    .attr("font-size", "12px")
+    .attr("pointer-events", "none");
+
+  // Add file size for each cell if there's room
+  cell
+    .filter((d) => d.depth === 1 && (d.y1 - d.y0) > 30)
+    .append("text")
+    .attr("x", 3)
+    .attr("y", 30)
+    .text((d) => formatBytes(d.value))
+    .attr("fill", "white")
+    .attr("font-size", "10px")
+    .attr("pointer-events", "none");
 }
 
 // Render sunburst visualization
@@ -470,6 +486,18 @@ function renderSunburst(data) {
     .sum((d) => (d.isDir ? 0 : d.size))
     .sort((a, b) => b.value - a.value);
 
+  // If we're navigating to a subdirectory, filter the data
+  let currentHierarchy = hierarchy;
+  if (currentPath.length > 0) {
+    let currentNode = hierarchy;
+    for (const segment of currentPath) {
+      const nextNode = currentNode.children?.find((child) => child.data.name === segment);
+      if (!nextNode) break;
+      currentNode = nextNode;
+    }
+    currentHierarchy = currentNode;
+  }
+
   // Create the arc generator
   const arc = d3
     .arc()
@@ -484,7 +512,7 @@ function renderSunburst(data) {
   const partition = d3.partition().size([2 * Math.PI, 1]);
 
   // Generate the partition data
-  const root = partition(hierarchy);
+  const root = partition(currentHierarchy);
 
   // Create SVG element
   const svg = d3
@@ -514,64 +542,77 @@ function renderSunburst(data) {
       // Navigate deeper on click if it's a directory
       if (d.data.isDir && d.children) {
         // Calculate the path based on ancestors
-        currentPath = [];
+        const newPath = [];
         let current = d;
         while (current.parent && current.parent.data.name) {
-          currentPath.unshift(current.data.name);
+          newPath.unshift(current.data.name);
           current = current.parent;
         }
+        currentPath = newPath;
         renderVisualization(data);
       }
     });
 
-  // Add labels for larger arcs
+  // Add labels for larger segments
   const label = svg
     .selectAll("text")
-    .data(root.descendants().filter((d) => d.depth && (d.y1 - d.y0) * (d.x1 - d.x0) > 0.03))
+    .data(
+      root
+        .descendants()
+        .filter(
+          (d) =>
+            d.depth &&
+            ((d.y1 - d.y0) * (d.x1 - d.x0) > 0.03) &&
+            d.data.name.length < 15
+        )
+    )
     .enter()
     .append("text")
-    .attr("class", "node-label")
     .attr("transform", (d) => {
-      const x = (((d.x0 + d.x1) / 2) * 180) / Math.PI;
-      const y = ((Math.sqrt(d.y0) + Math.sqrt(d.y1)) / 2) * radius;
-      return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+      const x = (d.x0 + d.x1) / 2;
+      const y = (d.y0 + d.y1) / 2;
+      const rotation = (x - Math.PI / 2) * (180 / Math.PI);
+      return `translate(${arc.centroid(d)}) rotate(${rotation})`;
     })
-    .attr("dy", "0.35em")
-    .text((d) => d.data.name);
+    .attr("text-anchor", "middle")
+    .text((d) => d.data.name)
+    .attr("fill", "white")
+    .attr("font-size", "10px")
+    .attr("pointer-events", "none");
 }
 
-// Update the details panel with information about the selected item
+// Update details panel with selected item
 function updateDetailsPanel(item) {
+  if (!item) return;
+
+  // Set path
   selectedPathText.textContent = item.path;
-  selectedPathText.title = "Click to copy path to clipboard";
+  selectedPathText.title = "Click to copy path to clipboard: " + item.path;
+
+  // Set size
   selectedSizeText.textContent = formatBytes(item.size);
 
+  // Set type information
   if (item.isDir) {
     let typeText = "Directory";
     if (item.fileTypes) {
-      const totalSize =
-        item.fileTypes.image +
-        item.fileTypes.video +
-        item.fileTypes.audio +
-        item.fileTypes.document +
-        item.fileTypes.archive +
-        item.fileTypes.other;
-      if (totalSize > 0) {
-        const breakdown = [];
-        if (item.fileTypes.image > 0)
-          breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
-        if (item.fileTypes.video > 0)
-          breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
-        if (item.fileTypes.audio > 0) breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
-        if (item.fileTypes.document > 0)
-          breakdown.push(`Documents: ${formatBytes(item.fileTypes.document)}`);
-        if (item.fileTypes.archive > 0)
-          breakdown.push(`Archives: ${formatBytes(item.fileTypes.archive)}`);
-        if (item.fileTypes.other > 0) breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
-
-        if (breakdown.length > 0) {
-          typeText += " - " + breakdown.join(", ");
-        }
+      // Add breakdown of file types if available
+      const breakdown = [];
+      if (item.fileTypes.image > 0)
+        breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
+      if (item.fileTypes.video > 0)
+        breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
+      if (item.fileTypes.audio > 0)
+        breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
+      if (item.fileTypes.document > 0)
+        breakdown.push(`Documents: ${formatBytes(item.fileTypes.document)}`);
+      if (item.fileTypes.archive > 0)
+        breakdown.push(`Archives: ${formatBytes(item.fileTypes.archive)}`);
+      if (item.fileTypes.other > 0)
+        breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
+      
+      if (breakdown.length > 0) {
+        typeText += " - " + breakdown.join(", ");
       }
     }
     selectedTypeText.textContent = typeText;
@@ -589,7 +630,7 @@ function updateBreadcrumbs() {
   homeBreadcrumb.className = "breadcrumb-item";
   homeBreadcrumb.textContent = "Root";
   homeBreadcrumb.addEventListener("click", () => {
-    currentPath = [];
+    currentPath = []; // This is fine as we're assigning a new empty array
     renderVisualization(currentData);
   });
   breadcrumbTrail.appendChild(homeBreadcrumb);
@@ -607,6 +648,7 @@ function updateBreadcrumbs() {
     const pathCopy = [...pathSoFar];
 
     breadcrumb.addEventListener("click", () => {
+      // pathCopy is already a new array created with [...pathSoFar]
       currentPath = pathCopy;
       renderVisualization(currentData);
     });
@@ -615,215 +657,200 @@ function updateBreadcrumbs() {
   });
 }
 
-// Get color for a file type based on its extension
+// Get color for file type based on extension
 function getFileTypeColor(extension) {
   if (!extension) return typeColors.other;
-
-  const ext = extension.toLowerCase();
-
-  for (const [type, extensions] of Object.entries(fileTypeMappings)) {
-    if (extensions.includes(ext)) {
-      return typeColors[type];
-    }
+  
+  const lowerExt = extension.toLowerCase();
+  const type = fileTypeMappings[lowerExt];
+  
+  if (type && typeColors[type]) {
+    return typeColors[type];
   }
-
+  
   return typeColors.other;
 }
 
-// Render a multi-colored box showing file type proportions
-function renderMultiColoredBox(parentGroup, width, height, fileTypes) {
-  const totalSize =
-    fileTypes.image +
-    fileTypes.video +
-    fileTypes.audio +
-    fileTypes.document +
-    fileTypes.archive +
-    fileTypes.other;
-
-  if (totalSize === 0) {
-    // If no files, render as directory color
-    parentGroup
-      .append("rect")
-      .attr("class", "node")
-      .attr("width", width)
-      .attr("height", height)
-      .attr("fill", typeColors.directory);
-    return;
-  }
-
-  // Calculate proportions and create segments
+// Render a multi-colored box representing file type distribution
+function renderMultiColoredBox(rectId, width, height, fileTypes) {
+  // Calculate total size
+  const total = fileTypes.image + fileTypes.video + fileTypes.audio + 
+                fileTypes.document + fileTypes.archive + fileTypes.other;
+  
+  if (total === 0) return;
+  
+  // Calculate proportions
+  const imageProp = fileTypes.image / total;
+  const videoProp = fileTypes.video / total;
+  const audioProp = fileTypes.audio / total;
+  const documentProp = fileTypes.document / total;
+  const archiveProp = fileTypes.archive / total;
+  const otherProp = fileTypes.other / total;
+  
+  // Create segments
   const segments = [];
-  const types = [
-    { name: "image", size: fileTypes.image, color: typeColors.image },
-    { name: "video", size: fileTypes.video, color: typeColors.video },
-    { name: "audio", size: fileTypes.audio, color: typeColors.audio },
-    { name: "document", size: fileTypes.document, color: typeColors.document },
-    { name: "archive", size: fileTypes.archive, color: typeColors.archive },
-    { name: "other", size: fileTypes.other, color: typeColors.other },
-  ];
-
-  // Filter out types with zero size and calculate cumulative widths
-  let currentX = 0;
-  for (const type of types) {
-    if (type.size > 0) {
-      const segmentWidth = (type.size / totalSize) * width;
-      segments.push({
-        x: currentX,
-        width: segmentWidth,
-        color: type.color,
-        type: type.name,
-        size: type.size,
-      });
-      currentX += segmentWidth;
-    }
+  let currentPosition = 0;
+  
+  if (imageProp > 0) {
+    segments.push({
+      color: typeColors.image,
+      start: currentPosition,
+      end: currentPosition + imageProp,
+    });
+    currentPosition += imageProp;
   }
-
-  // Render each segment as a rectangle
-  segments.forEach((segment) => {
-    parentGroup
+  
+  if (videoProp > 0) {
+    segments.push({
+      color: typeColors.video,
+      start: currentPosition,
+      end: currentPosition + videoProp,
+    });
+    currentPosition += videoProp;
+  }
+  
+  if (audioProp > 0) {
+    segments.push({
+      color: typeColors.audio,
+      start: currentPosition,
+      end: currentPosition + audioProp,
+    });
+    currentPosition += audioProp;
+  }
+  
+  if (documentProp > 0) {
+    segments.push({
+      color: typeColors.document,
+      start: currentPosition,
+      end: currentPosition + documentProp,
+    });
+    currentPosition += documentProp;
+  }
+  
+  if (archiveProp > 0) {
+    segments.push({
+      color: typeColors.archive,
+      start: currentPosition,
+      end: currentPosition + archiveProp,
+    });
+    currentPosition += archiveProp;
+  }
+  
+  if (otherProp > 0) {
+    segments.push({
+      color: typeColors.other,
+      start: currentPosition,
+      end: 1,
+    });
+  }
+  
+  // Create pattern definition with stripes
+  const svg = d3.select("svg");
+  const patternId = `pattern-${rectId.replace("rect-", "")}`;
+  
+  const defs = svg.append("defs");
+  
+  const pattern = defs
+    .append("pattern")
+    .attr("id", patternId)
+    .attr("width", width)
+    .attr("height", height)
+    .attr("patternUnits", "userSpaceOnUse");
+  
+  // Add colored rectangles
+  segments.forEach(segment => {
+    pattern
       .append("rect")
-      .attr("class", "node file-type-segment")
-      .attr("x", segment.x)
-      .attr("y", 0)
-      .attr("width", segment.width)
-      .attr("height", height)
-      .attr("fill", segment.color)
-      .attr("data-file-type", segment.type)
-      .attr("data-file-size", segment.size);
+      .attr("x", 0)
+      .attr("y", height * segment.start)
+      .attr("width", width)
+      .attr("height", height * (segment.end - segment.start))
+      .attr("fill", segment.color);
   });
 }
 
-// Format bytes to human-readable format
-function formatBytes(bytes, decimals = 2) {
+// Format bytes to human readable format
+function formatBytes(bytes) {
   if (bytes === 0) return "0 Bytes";
-
+  
   const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
+  
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  // Special case for bytes to not show decimal places
-  if (i === 0) {
-    return Math.floor(bytes) + " " + sizes[i];
-  }
-
-  return (bytes / Math.pow(k, i)).toFixed(dm) + " " + sizes[i];
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+// Copy path to clipboard
 function copyPathToClipboard() {
-  if (selectedPathText.textContent && selectedPathText.textContent !== "No item selected") {
-    navigator.clipboard
-      .writeText(selectedPathText.textContent)
-      .then(() => {
-        // Visual feedback
-        selectedPathText.classList.add("copied");
-        setTimeout(() => {
-          selectedPathText.classList.remove("copied");
-        }, 1500);
-      })
-      .catch((err) => {
-        console.error("Could not copy text: ", err);
-      });
-  }
+  const path = selectedPathText.textContent;
+  
+  if (!path || path === "No item selected") return;
+  
+  navigator.clipboard.writeText(path)
+    .then(() => {
+      // Show temporary confirmation
+      const originalText = selectedPathText.textContent;
+      selectedPathText.textContent = "Copied to clipboard!";
+      setTimeout(() => {
+        selectedPathText.textContent = originalText;
+      }, 1500);
+    })
+    .catch(err => {
+      console.error("Failed to copy path:", err);
+    });
 }
 
-// Fetch previous scans from the server
+// Fetch and display previous scans
 async function fetchPreviousScans() {
   try {
     const response = await fetch("/api/previous-scans");
     if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${await response.text()}`);
+      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
-
-    previousScans = await response.json();
-    if (previousScans && previousScans.length > 0) {
-      displayPreviousScans();
-      previousScansContainer.classList.remove("hidden");
-    } else {
-      previousScansContainer.classList.add("hidden");
-    }
+    
+    const scans = await response.json();
+    
+    // Store scans in state
+    previousScans = scans;
+    
+    // Display previous scans
+    displayPreviousScans();
   } catch (error) {
-    console.error("Error fetching previous scans:", error);
+    // Handle error when fetching previous scans
   }
 }
 
 // Display previous scans in the UI
 function displayPreviousScans() {
   previousScansList.innerHTML = "";
-
-  previousScans.forEach((scan) => {
-    const scanItem = document.createElement("div");
-    scanItem.className = "previous-scan-item";
-    scanItem.dataset.resultId = scan.resultId;
-
-    const scanDate = new Date(scan.timestamp);
-    const formattedDate = scanDate.toLocaleString();
-
-    scanItem.innerHTML = `
-            <div class="previous-scan-path">${scan.path}</div>
-            <div class="previous-scan-info">
-                <span>${formatBytes(scan.size)}</span>
-                <span>${formattedDate}</span>
-            </div>
-        `;
-
-    scanItem.addEventListener("click", () => {
-      fetchScanResult(scan.resultId);
+  
+  if (previousScans.length > 0) {
+    previousScansContainer.classList.remove("hidden");
+    
+    previousScans.forEach(scan => {
+      const scanItem = document.createElement("div");
+      scanItem.className = "previous-scan-item";
+      
+      // Format date
+      const scanDate = new Date(scan.timestamp);
+      const formattedDate = scanDate.toLocaleString();
+      
+      scanItem.innerHTML = `
+        <div class="scan-path">${scan.path}</div>
+        <div class="scan-info">${formattedDate} - ${formatBytes(scan.size)}</div>
+      `;
+      
+      scanItem.addEventListener("click", () => {
+        fetchScanResult(scan.resultId);
+      });
+      
+      previousScansList.appendChild(scanItem);
     });
-
-    previousScansList.appendChild(scanItem);
-  });
-}
-
-// Mock data generation for testing
-function generateMockChildren(parentPath, depth) {
-  if (depth <= 0) return [];
-
-  const types = [
-    { name: "Documents", size: 220000000, ext: null },
-    { name: "Pictures", size: 350000000, ext: null },
-    { name: "Music", size: 180000000, ext: null },
-    { name: "Videos", size: 420000000, ext: null },
-    { name: "report.pdf", size: 5000000, ext: "pdf" },
-    { name: "presentation.pptx", size: 15000000, ext: "pptx" },
-    { name: "vacation.jpg", size: 3000000, ext: "jpg" },
-    { name: "movie.mp4", size: 150000000, ext: "mp4" },
-    { name: "archive.zip", size: 80000000, ext: "zip" },
-    { name: "song.mp3", size: 8000000, ext: "mp3" },
-  ];
-
-  // Randomize the number of items
-  const numItems = Math.floor(Math.random() * 5) + 2;
-  const children = [];
-
-  for (let i = 0; i < numItems; i++) {
-    const typeIndex = Math.floor(Math.random() * types.length);
-    const type = types[typeIndex];
-
-    const isDir = type.ext === null;
-    const size = type.size * (0.5 + Math.random());
-
-    const child = {
-      name: type.name,
-      path: parentPath + "/" + type.name,
-      size: size,
-      isDir: isDir,
-      extension: type.ext,
-    };
-
-    if (isDir && depth > 1) {
-      child.children = generateMockChildren(child.path, depth - 1);
-    }
-
-    children.push(child);
+  } else {
+    previousScansContainer.classList.add("hidden");
   }
-
-  return children;
 }
 
-// Initialize the application
-document.addEventListener("DOMContentLoaded", function () {
-  console.log("DOM Content Loaded, starting initialization...");
-  init();
-});
+// Initialize the application when the page loads
+document.addEventListener("DOMContentLoaded", init);

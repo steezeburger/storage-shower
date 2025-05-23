@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -55,7 +56,7 @@ var (
 	// To track stalled scans
 	lastScannedItems int
 	lastProgressTime time.Time
-	
+
 	// Current result path
 	resultPath string
 )
@@ -78,7 +79,7 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 		InProgress:   true,
 		CurrentPath:  rootPath,
 		ScannedItems: 0,
-		TotalItems:   0,
+		TotalItems:   1, // Start with at least 1 to avoid division by zero
 		Progress:     0.0,
 	}
 	lastScannedItems = 0
@@ -114,7 +115,7 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 
 	// Scan the directory structure recursively
 	err = scanRecursive(rootPath, &root, dirMap, ignoreHidden)
-	
+
 	// Check if scan was canceled
 	if err != nil && err.Error() == "scan canceled" {
 		log.Printf("Scan was canceled")
@@ -129,13 +130,16 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	}
 
 	// Fix directory sizes
-	if DebugMode {
-		log.Println("Fixing directory sizes...")
-	}
-	fileinfo.FixDirectorySizes(&root, dirMap)
+		if DebugMode {
+			log.Println("Fixing directory sizes...")
+		}
+		fileinfo.FixDirectorySizes(&root, dirMap)
 
-	// Save result to a temporary file
-	resultJSON, err := json.Marshal(root)
+		// Trim the tree to reduce size before saving
+		trimmedRoot := trimTreeForStorage(&root, 0)
+	
+		// Save result to a temporary file
+		resultJSON, err := json.Marshal(trimmedRoot)
 	if err != nil {
 		log.Printf("Error marshaling result: %v", err)
 		statusMutex.Lock()
@@ -236,6 +240,9 @@ func countFiles(rootPath string, ignoreHidden bool) {
 	log.Printf("File count completed: %d total items found", count)
 	statusMutex.Lock()
 	scanStatus.TotalItems = count
+	if scanStatus.TotalItems == 0 {
+		scanStatus.TotalItems = 1 // Ensure we never have zero total items
+	}
 	statusMutex.Unlock()
 }
 
@@ -255,8 +262,10 @@ func scanRecursive(path string, dir *fileinfo.FileInfo, dirMap map[string]*filei
 	scanStatus.ScannedItems++
 	if scanStatus.TotalItems > 0 {
 		scanStatus.Progress = float64(scanStatus.ScannedItems) / float64(scanStatus.TotalItems)
+	} else {
+		scanStatus.Progress = 0.0
 	}
-	
+
 	// Check for stalled scan
 	if scanStatus.ScannedItems > 0 {
 		if scanStatus.ScannedItems > lastScannedItems {
@@ -350,8 +359,69 @@ func scanRecursive(path string, dir *fileinfo.FileInfo, dirMap map[string]*filei
 // GetScanStatus returns the current scan status
 func GetScanStatus() ScanStatus {
 	statusMutex.Lock()
-	defer statusMutex.Unlock()
-	return scanStatus
+	status := scanStatus
+	// Ensure we never return NaN for progress
+	if status.TotalItems == 0 {
+		status.TotalItems = 1
+		status.Progress = 0.0
+	}
+	statusMutex.Unlock()
+	return status
+}
+
+
+
+// trimTreeForStorage reduces the size of the directory tree by limiting depth
+// and trimming nodes with small sizes
+func trimTreeForStorage(node *fileinfo.FileInfo, depth int) fileinfo.FileInfo {
+	// Create a copy of the node
+	result := *node
+	
+	// For deep trees, limit the depth to reduce JSON size
+	maxDepth := 6
+	minSizeToKeep := int64(1024 * 1024) // 1MB minimum size to keep at deeper levels
+	
+	// If we're at the max depth, only keep children above the size threshold
+	if depth >= maxDepth {
+		// For deep levels, only keep significant items
+		if len(result.Children) > 0 {
+			keptChildren := make([]fileinfo.FileInfo, 0)
+			for _, child := range result.Children {
+				if child.Size >= minSizeToKeep || child.IsDir && len(child.Children) > 0 {
+					// For these deep nodes, don't include their children
+					trimmedChild := child
+					trimmedChild.Children = nil
+					keptChildren = append(keptChildren, trimmedChild)
+				}
+			}
+			
+			// If we have too many children, keep only the largest ones
+			maxChildren := 10
+			if len(keptChildren) > maxChildren {
+				// Sort by size, descending
+				sort.Slice(keptChildren, func(i, j int) bool {
+					return keptChildren[i].Size > keptChildren[j].Size
+				})
+				
+				// Keep only the largest items
+				keptChildren = keptChildren[:maxChildren]
+			}
+			
+			result.Children = keptChildren
+		}
+		return result
+	}
+	
+	// For normal depth, recursively process children
+	if len(result.Children) > 0 {
+		newChildren := make([]fileinfo.FileInfo, len(result.Children))
+		for i, child := range result.Children {
+			newChildren[i] = trimTreeForStorage(&child, depth+1)
+		}
+		result.Children = newChildren
+	}
+	
+	return result
 }
 
 // CancelScan cancels any scan in progress
@@ -391,7 +461,7 @@ func GetLatestScanResult() (fileinfo.FileInfo, error) {
 	if err := json.Unmarshal(data, &result); err != nil {
 		return fileinfo.FileInfo{}, fmt.Errorf("failed to parse scan result: %v", err)
 	}
-
+	
 	return result, nil
 }
 
@@ -428,7 +498,7 @@ func GetScanResultByID(resultID string) (fileinfo.FileInfo, error) {
 	if err := json.Unmarshal(data, &result); err != nil {
 		return fileinfo.FileInfo{}, fmt.Errorf("failed to parse scan result: %v", err)
 	}
-
+	
 	return result, nil
 }
 
@@ -450,11 +520,11 @@ func SavePreviousScans() {
 
 	// Save to file
 	scansFile := filepath.Join(configDir, "previous-scans.json")
-	
+
 	statusMutex.Lock()
 	data, err := json.MarshalIndent(PreviousScans, "", "  ")
 	statusMutex.Unlock()
-	
+
 	if err != nil {
 		log.Printf("Warning: Cannot marshal scan history: %v", err)
 		return

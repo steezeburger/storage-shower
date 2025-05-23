@@ -1,4 +1,18 @@
-Feature Requests:
+Feature Requests 5/23:
+- [ ] should be a `>` between breadcrumb chips
+- [ ] clicking into directory view from main view doesn't render nested files and directories correctly, it just renders all the names on top of  each other
+
+
+Regressions:
+- [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?
+- [x] server no longer runs on port 8080
+- [ ] localhost/:1 Refused to execute script from 'http://localhost:8080/frontend/app.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.
+
+Bugs:
+- [x] the debug logs are always shown regardless of flag existence
+- [ ] the stalled button is sometimes incorrectly shown
+
+Feature Requests 5/22:
 - [x] i want to click the filepath on frontend to copy the full path to my clipboard
 - [x] i want to see previous runs in the frontend underneath my current run
 - [x] the project should have a gitignore with relevant files and dirs included for this project
@@ -13,12 +27,3 @@ Feature Requests:
 - [x] the project should have backend tests
 - [x] the project should have frontend tests
 - [x] the project should have a github action to run the tests
-
-Regressions:
-- [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?
-- [x] server no longer runs on port 8080
-- [ ] localhost/:1 Refused to execute script from 'http://localhost:8080/frontend/app.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.
-
-Bugs:
-- [x] the debug logs are always shown regardless of flag existence
-- [ ] the stalled button is sometimes incorrectly shown
