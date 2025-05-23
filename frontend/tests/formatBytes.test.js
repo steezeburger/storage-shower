@@ -6,14 +6,19 @@ describe('formatBytes', () => {
   // Mock the formatBytes function since we can't import it directly
   function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    
+
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+
+    // Special case for bytes to not show decimal places
+    if (i === 0) {
+      return Math.floor(bytes) + " " + sizes[i];
+    }
+
+    return (bytes / Math.pow(k, i)).toFixed(dm) + " " + sizes[i];
   }
 
   test('should format 0 bytes correctly', () => {
