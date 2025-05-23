@@ -93,6 +93,7 @@ func startServer() int {
 	http.HandleFunc("/api/scan/status", handleScanStatus)
 	http.HandleFunc("/api/scan/stop", handleScanStop)
 	http.HandleFunc("/api/home", handleHome)
+	http.HandleFunc("/api/browse", handleBrowse)
 	http.HandleFunc("/api/results", handleResults)
 	http.HandleFunc("/api/previous-scans", handlePreviousScans)
 
@@ -456,6 +457,71 @@ func handlePreviousScans(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(scans)
+}
+
+// handleBrowse opens a native file dialog and returns the selected directory
+func handleBrowse(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var selectedPath string
+	var err error
+
+	switch runtime.GOOS {
+	case "darwin":
+		// Use AppleScript to open a folder selection dialog
+		cmd := exec.Command("osascript", "-e", `choose folder with prompt "Select a directory to scan"`)
+		output, err := cmd.Output()
+		if err == nil {
+			// AppleScript returns something like 'alias Macintosh HD:Users:username:Documents:'
+			// Convert it to a regular path
+			selectedPath = strings.TrimSpace(string(output))
+			// Remove 'alias ' prefix if present
+			selectedPath = strings.TrimPrefix(selectedPath, "alias ")
+			// Convert to POSIX path
+			cmd = exec.Command("osascript", "-e", fmt.Sprintf(`POSIX path of "%s"`, selectedPath))
+			output, err = cmd.Output()
+			if err == nil {
+				selectedPath = strings.TrimSpace(string(output))
+			}
+		}
+	case "windows":
+		// Use PowerShell to open folder browser dialog
+		script := `
+		Add-Type -AssemblyName System.Windows.Forms
+		$folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+		$folderBrowser.Description = "Select a directory to scan"
+		$folderBrowser.RootFolder = 'MyComputer'
+		if ($folderBrowser.ShowDialog() -eq 'OK') {
+			$folderBrowser.SelectedPath
+		}
+		`
+		cmd := exec.Command("powershell", "-Command", script)
+		output, err := cmd.Output()
+		if err == nil {
+			selectedPath = strings.TrimSpace(string(output))
+		}
+	default: // Linux
+		// Use zenity for Linux
+		cmd := exec.Command("zenity", "--file-selection", "--directory", "--title=Select a directory to scan")
+		output, err := cmd.Output()
+		if err == nil {
+			selectedPath = strings.TrimSpace(string(output))
+		}
+	}
+
+	if err != nil || selectedPath == "" {
+		log.Printf("Error opening file dialog: %v", err)
+		http.Error(w, "Failed to open file dialog", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("User selected directory: %s", selectedPath)
+	response := map[string]string{"path": selectedPath}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func countFiles(rootPath string, ignoreHidden bool) {

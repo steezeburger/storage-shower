@@ -90,9 +90,21 @@ function init() {
 // Set home directory in the path input
 async function browseDirectory() {
     console.log('Browse button clicked');
-    // In a real browser environment, we can't browse for directories
-    // So we'll just alert the user about this limitation
-    alert('In a real browser environment, directory browsing requires a file input dialog which has security limitations.\n\nPlease manually enter the directory path in the input field.');
+    try {
+        const response = await fetch('/api/browse');
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${await response.text()}`);
+        }
+        
+        const data = await response.json();
+        console.log('Selected directory:', data.path);
+        
+        // Update the path input with the selected directory
+        pathInput.value = data.path;
+    } catch (error) {
+        console.error('Error browsing directory:', error);
+        alert('Failed to open directory browser. Please manually enter the directory path.');
+    }
 }
 
 async function setHomeDirectory() {

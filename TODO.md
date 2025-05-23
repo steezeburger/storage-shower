@@ -5,7 +5,7 @@ Feature Requests:
 - [x] the project should setup claude code github actions following instructions fromhttps://docs.anthropic.com/en/docs/claude-code/github-actions
 - [x] i want to see the logo from images/logo.jpeg in the README.md but please convert the file to a png first
 - [x] i do not want to ignore hidden files by default
-- [ ] i want the browse button to open up a file explorer so i can select a directory
+- [x] i want the browse button to open up a file explorer so i can select a directory
 - [ ] the project should have a code formatter. use defaults of the most popular formatter for the language.
 - [ ] the project should have a linter
 - [ ] the project should have backend tests
