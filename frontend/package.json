@@ -8,7 +8,7 @@
     "format:check": "prettier --check \"*.{js,html,css}\" \"tests/**/*.{js,html,css}\"",
     "lint": "eslint \"*.js\" \"tests/**/*.js\"",
     "lint:fix": "eslint --fix \"*.js\" \"tests/**/*.js\"",
-    "lint-html":"htmlhint \"*.html\"",
+    "lint-html": "htmlhint \"*.html\"",
     "lint-css": "stylelint \"*.css\"",
     "lint-css:fix": "stylelint --fix \"*.css\"",
     "test": "jest --config frontend/jest.config.js"
@@ -24,6 +24,7 @@
   "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.22.5",
+    "@babel/eslint-parser": "^7.27.1",
     "@babel/preset-env": "^7.22.5",
     "babel-jest": "^29.5.0",
     "eslint": "^8.43.0",

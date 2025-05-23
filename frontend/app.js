@@ -5,7 +5,7 @@ const homeBtn = document.getElementById("home-btn");
 const scanBtn = document.getElementById("scan-btn");
 const stopBtn = document.getElementById("stop-btn");
 const ignoreHiddenCheckbox = document.getElementById("ignore-hidden");
-const vizTypeRadios = document.querySelectorAll('input[name="viz-type"]');
+const vizTypeRadios = document.querySelectorAll("input[name=\"viz-type\"]");
 const progressContainer = document.getElementById("progress-container");
 const progressBarFill = document.getElementById("progress-bar-fill");
 const scannedItemsText = document.getElementById("scanned-items");
@@ -398,9 +398,9 @@ function renderTreemap(data) {
   // Create a hierarchy from the data
   const hierarchy = d3
     .hierarchy(data)
-    .sum((d) => {
-      return d.size > 0 ? d.size : 0; // Ensure we use all sizes, not just files
-    })
+    .sum((d) => 
+      d.size > 0 ? d.size : 0 // Ensure we use all sizes, not just files
+    )
     .sort((a, b) => b.value - a.value);
 
   // If we're navigating to a subdirectory, filter the data
@@ -409,7 +409,9 @@ function renderTreemap(data) {
     let currentNode = hierarchy;
     for (const segment of currentPath) {
       const nextNode = currentNode.children?.find((child) => child.data.name === segment);
-      if (!nextNode) break;
+      if (!nextNode) {
+        break;
+      }
       currentNode = nextNode;
     }
     currentHierarchy = currentNode;
@@ -533,7 +535,9 @@ function renderSunburst(data) {
     let currentNode = hierarchy;
     for (const segment of currentPath) {
       const nextNode = currentNode.children?.find((child) => child.data.name === segment);
-      if (!nextNode) break;
+      if (!nextNode) {
+        break;
+      }
       currentNode = nextNode;
     }
     currentHierarchy = currentNode;
@@ -572,7 +576,9 @@ function renderSunburst(data) {
     .append("path")
     .attr("class", "sunburst-path")
     .attr("fill", (d) => {
-      if (d.data.isDir) return typeColors.directory;
+      if (d.data.isDir) {
+        return typeColors.directory;
+      }
       return getFileTypeColor(d.data.extension);
     })
     .attr("d", arc)
@@ -619,7 +625,9 @@ function renderSunburst(data) {
 
 // Update details panel with selected item
 function updateDetailsPanel(item) {
-  if (!item) return;
+  if (!item) {
+    return;
+  }
 
   // Set path
   selectedPathText.textContent = item.path;
@@ -634,14 +642,24 @@ function updateDetailsPanel(item) {
     if (item.fileTypes) {
       // Add breakdown of file types if available
       const breakdown = [];
-      if (item.fileTypes.image > 0) breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
-      if (item.fileTypes.video > 0) breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
-      if (item.fileTypes.audio > 0) breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
-      if (item.fileTypes.document > 0)
+      if (item.fileTypes.image > 0) {
+        breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
+      }
+      if (item.fileTypes.video > 0) {
+        breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
+      }
+      if (item.fileTypes.audio > 0) {
+        breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
+      }
+      if (item.fileTypes.document > 0) {
         breakdown.push(`Documents: ${formatBytes(item.fileTypes.document)}`);
-      if (item.fileTypes.archive > 0)
+      }
+      if (item.fileTypes.archive > 0) {
         breakdown.push(`Archives: ${formatBytes(item.fileTypes.archive)}`);
-      if (item.fileTypes.other > 0) breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
+      }
+      if (item.fileTypes.other > 0) {
+        breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
+      }
 
       if (breakdown.length > 0) {
         typeText += " - " + breakdown.join(", ");
@@ -668,7 +686,7 @@ function updateBreadcrumbs() {
   breadcrumbTrail.appendChild(homeBreadcrumb);
 
   // Add path segments
-  let pathSoFar = [];
+  const pathSoFar = [];
   currentPath.forEach((segment, index) => {
     pathSoFar.push(segment);
 
@@ -691,7 +709,9 @@ function updateBreadcrumbs() {
 
 // Get color for file type based on extension
 function getFileTypeColor(extension) {
-  if (!extension) return typeColors.other;
+  if (!extension) {
+    return typeColors.other;
+  }
 
   const lowerExt = extension.toLowerCase();
   const type = fileTypeMappings[lowerExt];
@@ -714,7 +734,9 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
     fileTypes.archive +
     fileTypes.other;
 
-  if (total === 0) return;
+  if (total === 0) {
+    return;
+  }
 
   // Calculate proportions
   const imageProp = fileTypes.image / total;
@@ -808,7 +830,9 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
 
 // Format bytes to human readable format
 function formatBytes(bytes) {
-  if (bytes === 0) return "0 Bytes";
+  if (bytes === 0) {
+    return "0 Bytes";
+  }
 
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
@@ -822,7 +846,9 @@ function formatBytes(bytes) {
 function copyPathToClipboard() {
   const path = selectedPathText.textContent;
 
-  if (!path || path === "No item selected") return;
+  if (!path || path === "No item selected") {
+    return;
+  }
 
   navigator.clipboard
     .writeText(path)

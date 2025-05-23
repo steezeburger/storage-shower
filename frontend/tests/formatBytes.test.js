@@ -5,7 +5,9 @@
 describe("formatBytes", () => {
   // Mock the formatBytes function since we can't import it directly
   function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return "0 Bytes";
+    if (bytes === 0) {
+      return "0 Bytes";
+    }
 
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
