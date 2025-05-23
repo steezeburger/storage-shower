@@ -31,25 +31,23 @@ jobs:
           prompt: "${{ github.event.comment.body || github.event.issue.body }}"
 
           # Define which tools Claude can use
-          allowed_tools: [
-            # Git inspection commands (read-only)
-            "Bash(git status)",
-            "Bash(git log)",
-            "Bash(git show)",
-            "Bash(git blame)",
-            "Bash(git reflog)",
-            "Bash(git stash list)",
-            "Bash(git ls-files)",
-            "Bash(git branch)",
-            "Bash(git tag)",
-            "Bash(git diff)",
-
+          allowed_tools:
+            - "Bash(git status)"
+            - "Bash(git log)"
+            - "Bash(git show)"
+            - "Bash(git blame)"
+            - "Bash(git reflog)"
+            - "Bash(git stash list)"
+            - "Bash(git ls-files)"
+            - "Bash(git branch)"
+            - "Bash(git tag)"
+            - "Bash(git diff)"
+            
             # File exploration tools
-            "View",        # Read file contents
-            "GlobTool",    # Find files by pattern
-            "GrepTool",    # Search file contents
-            "BatchTool"    # Run multiple tools in parallel
-          ]
+            - "View"        # Read file contents
+            - "GlobTool"    # Find files by pattern
+            - "GrepTool"    # Search file contents
+            - "BatchTool"   # Run multiple tools in parallel
 
           # Timeout setting (in minutes)
           timeout_minutes: 30
