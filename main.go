@@ -1,0 +1,714 @@
+package main
+
+import (
+	"embed"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"os/user"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+)
+
+// Debug flag to control verbose logging
+var debugMode = false
+
+//go:embed frontend
+var frontendFS embed.FS
+
+// FileInfo represents a file or directory with its size and children
+type FileInfo struct {
+	Name      string     `json:"name"`
+	Path      string     `json:"path"`
+	Size      int64      `json:"size"`
+	IsDir     bool       `json:"isDir"`
+	Children  []FileInfo `json:"children,omitempty"`
+	Extension string     `json:"extension,omitempty"`
+}
+
+// ScanProgress represents the current progress of a filesystem scan
+type ScanProgress struct {
+	TotalItems   int     `json:"totalItems"`
+	ScannedItems int     `json:"scannedItems"`
+	Progress     float64 `json:"progress"`
+	CurrentPath  string  `json:"currentPath"`
+}
+
+var (
+	scanInProgress   bool
+	cancelScan       bool
+	scanMutex        sync.Mutex
+	currentScan      ScanProgress
+	resultPath       string
+	lastScannedItems int
+	lastProgressTime time.Time
+	scanDone         chan struct{}
+)
+
+func main() {
+	// Check for debug flag in args
+	for _, arg := range os.Args {
+		if arg == "--debug" {
+			debugMode = true
+			break
+		}
+	}
+
+	// Start server on a random available port
+	port := startServer()
+
+	// Open browser
+	url := fmt.Sprintf("http://localhost:%d", port)
+	log.Printf("Server started at %s", url)
+	openBrowser(url)
+
+	// Keep the server running
+	select {}
+}
+
+func startServer() int {
+	http.HandleFunc("/", serveIndex)
+	http.HandleFunc("/api/scan", handleScan)
+	http.HandleFunc("/api/scan/status", handleScanStatus)
+	http.HandleFunc("/api/scan/stop", handleScanStop)
+	http.HandleFunc("/api/home", handleHome)
+	http.HandleFunc("/api/results", handleResults)
+
+	// Serve static files with proper MIME types
+	http.HandleFunc("/frontend/", serveFrontendFiles)
+
+	// Listen on port 8080
+	listener, err := net.Listen("tcp", "localhost:8080")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	port := 8080
+
+	go func() {
+		if err := http.Serve(listener, nil); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	return port
+}
+
+// openBrowser opens the default browser to the specified URL
+func openBrowser(url string) {
+	var err error
+
+	log.Printf("Opening browser at URL: %s", url)
+	switch runtime.GOOS {
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	default: // "linux", "freebsd", etc.
+		err = exec.Command("xdg-open", url).Start()
+	}
+
+	if err != nil {
+		log.Printf("Error opening browser: %v", err)
+		log.Printf("Please open your browser and navigate to: %s", url)
+	}
+}
+
+func serveIndex(w http.ResponseWriter, r *http.Request) {
+	content, err := frontendFS.ReadFile("frontend/index.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(content)
+}
+
+func serveFrontendFiles(w http.ResponseWriter, r *http.Request) {
+	// Remove the /frontend/ prefix to get the actual file path
+	filePath := strings.TrimPrefix(r.URL.Path, "/frontend/")
+	fullPath := "frontend/" + filePath
+
+	log.Printf("Serving frontend file: %s", fullPath)
+
+	content, err := frontendFS.ReadFile(fullPath)
+	if err != nil {
+		log.Printf("Error reading frontend file %s: %v", fullPath, err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Set appropriate MIME type based on file extension
+	switch filepath.Ext(filePath) {
+	case ".js":
+		w.Header().Set("Content-Type", "application/javascript")
+	case ".css":
+		w.Header().Set("Content-Type", "text/css")
+	case ".html":
+		w.Header().Set("Content-Type", "text/html")
+	default:
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+
+	w.Write(content)
+}
+
+func handleHome(w http.ResponseWriter, r *http.Request) {
+	u, err := user.Current()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("Error getting user home directory: %v", err)
+		return
+	}
+
+	log.Printf("Returning home directory: %s", u.HomeDir)
+	resp := map[string]string{"home": u.HomeDir}
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("Error marshaling home directory response: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResp)
+}
+
+func handleScan(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Received scan request from %s", r.RemoteAddr)
+
+	if r.Method != "POST" {
+		log.Printf("Invalid method %s for scan endpoint", r.Method)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	scanMutex.Lock()
+	if scanInProgress {
+		scanMutex.Unlock()
+		http.Error(w, "Scan already in progress", http.StatusConflict)
+		return
+	}
+	scanInProgress = true
+	cancelScan = false
+	currentScan = ScanProgress{}
+	scanDone = make(chan struct{})
+	scanMutex.Unlock()
+
+	var requestData struct {
+		Path         string `json:"path"`
+		IgnoreHidden bool   `json:"ignoreHidden"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		log.Printf("Failed to decode scan request: %v", err)
+		scanMutex.Lock()
+		scanInProgress = false
+		scanMutex.Unlock()
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Scan request: path=%s, ignoreHidden=%t", requestData.Path, requestData.IgnoreHidden)
+
+	if requestData.Path == "" {
+		log.Printf("Scan request rejected: empty path")
+		scanMutex.Lock()
+		scanInProgress = false
+		scanMutex.Unlock()
+		http.Error(w, "Path is required", http.StatusBadRequest)
+		return
+	}
+
+	// Count total items for progress reporting (in a separate goroutine)
+	log.Printf("Starting file count for path: %s", requestData.Path)
+	go func() {
+		countFiles(requestData.Path, requestData.IgnoreHidden)
+	}()
+
+	// Start the actual scan
+	log.Printf("Starting directory scan for path: %s", requestData.Path)
+	go func() {
+		// Make sure we always mark the scan as finished
+		defer func() {
+			scanMutex.Lock()
+			scanInProgress = false
+			scanMutex.Unlock()
+			log.Printf("Scan process finished for path: %s", requestData.Path)
+		}()
+
+		result, err := scanDirectory(requestData.Path, requestData.IgnoreHidden)
+		if debugMode {
+			log.Printf("DEBUG: Scan result root size: %d bytes", result.Size)
+		}
+
+		if err != nil {
+			log.Printf("Scan failed for path %s: %v", requestData.Path, err)
+			return
+		}
+
+		log.Printf("Scan completed successfully for path: %s", requestData.Path)
+
+		// Always save result, even if it's partial
+		// Ensure result has correct size data
+		log.Printf("DEBUG: Before saving, root size is %d bytes with %d children", 
+			result.Size, len(result.Children))
+		
+		// Log the top-level directories/files and their sizes
+		if debugMode {
+			for _, child := range result.Children {
+				log.Printf("DEBUG: Top-level item: %s, size: %d bytes, isDir: %v", 
+					child.Name, child.Size, child.IsDir)
+			}
+		}
+		
+		// Save result to a temporary file
+		resultJSON, err := json.Marshal(result)
+		if err != nil {
+			log.Printf("Error marshaling result: %v", err)
+			return
+		}
+		
+		tempFile, err := os.CreateTemp("", "storage-shower-*.json")
+		if err != nil {
+			log.Printf("Error creating temp file: %v", err)
+			return
+		}
+		
+		_, err = tempFile.Write(resultJSON)
+		if err != nil {
+			log.Printf("Error writing to temp file: %v", err)
+			tempFile.Close()
+			return
+		}
+		
+		tempFile.Close()
+
+		scanMutex.Lock()
+		resultPath = tempFile.Name()
+		scanMutex.Unlock()
+
+		log.Printf("Scan result saved to %s (%s)", tempFile.Name(), formatBytes(int64(len(resultJSON))))
+	}()
+
+	log.Printf("Scan started successfully for path: %s", requestData.Path)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status": "started"}`))
+}
+
+func handleScanStatus(w http.ResponseWriter, r *http.Request) {
+	scanMutex.Lock()
+	progress := currentScan
+	inProgress := scanInProgress
+
+	// Add a timeout check - if no progress in 30 seconds, consider scan stalled
+	static := false
+	if inProgress && progress.ScannedItems > 0 {
+		static = true
+
+		// Create a static check state if it doesn't exist
+		if lastScannedItems == 0 {
+			lastScannedItems = progress.ScannedItems
+			lastProgressTime = time.Now()
+		} else if progress.ScannedItems > lastScannedItems {
+			// Progress is being made, update the last known state
+			lastScannedItems = progress.ScannedItems
+			lastProgressTime = time.Now()
+			static = false
+		} else if time.Since(lastProgressTime) > 30*time.Second {
+			// No progress for 30 seconds, consider scan stalled
+			log.Printf("Scan appears stalled - no progress for 30 seconds")
+			static = true
+		} else {
+			static = false
+		}
+	}
+	scanMutex.Unlock()
+
+	response := struct {
+		InProgress bool         `json:"inProgress"`
+		Progress   ScanProgress `json:"progress"`
+		Stalled    bool         `json:"stalled,omitempty"`
+	}{
+		InProgress: inProgress,
+		Progress:   progress,
+		Stalled:    static,
+	}
+
+	jsonResp, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(jsonResp)
+}
+
+func handleScanStop(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	log.Printf("Scan stop requested")
+
+	scanMutex.Lock()
+	wasScanInProgress := scanInProgress
+	cancelScan = true
+	scanMutex.Unlock()
+
+	if wasScanInProgress {
+		log.Printf("Cancellation flag set, waiting for scan to finish...")
+	} else {
+		log.Printf("No scan in progress, nothing to stop")
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status": "stopping"}`))
+}
+
+func handleResults(w http.ResponseWriter, r *http.Request) {
+	scanMutex.Lock()
+	currentResultPath := resultPath
+	scanMutex.Unlock()
+
+	if currentResultPath == "" {
+		http.Error(w, "No scan results available", http.StatusNotFound)
+		return
+	}
+
+	data, err := os.ReadFile(currentResultPath)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
+func countFiles(rootPath string, ignoreHidden bool) {
+	log.Printf("Starting file count for: %s", rootPath)
+	var count int
+
+	filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip items we can't access
+		}
+
+		// Check if we should cancel
+		scanMutex.Lock()
+		if cancelScan {
+			scanMutex.Unlock()
+			return filepath.SkipAll
+		}
+		scanMutex.Unlock()
+
+		if ignoreHidden && isHidden(path) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		count++
+
+		if count%1000 == 0 {
+			log.Printf("Counted %d files so far...", count)
+			scanMutex.Lock()
+			currentScan.TotalItems = count
+			scanMutex.Unlock()
+		} else if count%100 == 0 {
+			scanMutex.Lock()
+			currentScan.TotalItems = count
+			scanMutex.Unlock()
+		}
+
+		return nil
+	})
+
+	log.Printf("File count completed: %d total items found", count)
+	scanMutex.Lock()
+	currentScan.TotalItems = count
+	scanMutex.Unlock()
+}
+
+func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
+	log.Printf("Beginning directory scan of: %s", rootPath)
+	rootInfo, err := os.Stat(rootPath)
+	if err != nil {
+		log.Printf("Failed to stat root path %s: %v", rootPath, err)
+		return FileInfo{}, err
+	}
+
+	// Get initial size if this is a file
+	initialSize := int64(0)
+	if !rootInfo.IsDir() {
+		initialSize = rootInfo.Size()
+		log.Printf("Root is a file with size: %d bytes", initialSize)
+	}
+
+	root := FileInfo{
+		Name:  filepath.Base(rootPath),
+		Path:  rootPath,
+		IsDir: rootInfo.IsDir(),
+		Size:  initialSize,
+	}
+
+	if !root.IsDir {
+		root.Size = rootInfo.Size()
+		root.Extension = strings.TrimPrefix(filepath.Ext(rootPath), ".")
+		return root, nil
+	}
+
+	// Reset cancelScan flag
+	scanMutex.Lock()
+	cancelScan = false
+	scanMutex.Unlock()
+
+	// Create a map to keep track of directories by path
+	dirMap := make(map[string]*FileInfo)
+	dirMap[rootPath] = &root
+
+	// Simple recursive scan function - more reliable than worker pool
+	var scanRecursive func(path string) error
+	scanRecursive = func(path string) error {
+		// Check for cancellation
+		scanMutex.Lock()
+		if cancelScan {
+			scanMutex.Unlock()
+			return fmt.Errorf("scan canceled")
+		}
+		scanMutex.Unlock()
+
+		// Get directory entries
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			log.Printf("Error reading directory %s: %v", path, err)
+			return nil // Continue with other directories
+		}
+
+		// Process each entry
+		for _, entry := range entries {
+			// Check for cancellation frequently
+			scanMutex.Lock()
+			if cancelScan {
+				scanMutex.Unlock()
+				return fmt.Errorf("scan canceled")
+			}
+			scanMutex.Unlock()
+
+			entryPath := filepath.Join(path, entry.Name())
+
+			// Skip hidden files/directories if requested
+			if ignoreHidden && isHidden(entryPath) {
+				if entry.IsDir() {
+					continue // Skip this directory
+				}
+				continue // Skip this file
+			}
+
+			// Get file info
+			info, err := entry.Info()
+			if err != nil {
+				log.Printf("Error getting info for %s: %v", entryPath, err)
+				continue // Skip this entry
+			}
+
+			// Create file info struct with proper size initialization
+			fileSize := info.Size()
+			if debugMode {
+				log.Printf("DEBUG: Creating FileInfo for %s with size %d bytes (isDir: %v)",
+					entryPath, fileSize, entry.IsDir())
+			}
+
+			// Initialize size based on file or directory
+			var initialSize int64 = 0
+			if !entry.IsDir() {
+				initialSize = fileSize
+			}
+
+			fileInfo := FileInfo{
+				Name:  entry.Name(),
+				Path:  entryPath,
+				IsDir: entry.IsDir(),
+				Size:  initialSize, // Only set size for files, directories will accumulate
+			}
+
+			// Update progress
+			scanMutex.Lock()
+			currentScan.ScannedItems++
+			if currentScan.TotalItems > 0 {
+				currentScan.Progress = float64(currentScan.ScannedItems) / float64(currentScan.TotalItems)
+			}
+			currentScan.CurrentPath = entryPath
+			scanMutex.Unlock()
+
+			// Handle file or directory
+			if !entry.IsDir() {
+				// For files, ensure size is set correctly and add extension
+				// Size should already be set in the struct initialization, but double-check
+				if fileInfo.Size <= 0 {
+					fileInfo.Size = info.Size()
+					log.Printf("DEBUG: Set file size for %s to %d bytes", fileInfo.Path, fileInfo.Size)
+				}
+				fileInfo.Extension = strings.TrimPrefix(filepath.Ext(entryPath), ".")
+
+				// Add to parent directory
+				parentPath := filepath.Dir(entryPath)
+				if parent, ok := dirMap[parentPath]; ok {
+					if debugMode {
+						log.Printf("DEBUG: Adding file %s to parent directory %s", fileInfo.Path, parentPath)
+					}
+					parent.Children = append(parent.Children, fileInfo)
+					if debugMode {
+						log.Printf("DEBUG: Parent now has %d children", len(parent.Children))
+					}
+
+					// Update parent sizes for files with non-zero sizes
+					size := fileInfo.Size
+					if size > 0 {
+						if debugMode {
+							log.Printf("DEBUG: File size to add: %d bytes", size)
+							log.Printf("DEBUG: Adding file size %d bytes for %s", size, fileInfo.Path)
+						}
+						// Add file size to all parent directories
+						for p := parentPath; p != ""; p = filepath.Dir(p) {
+							if dir, ok := dirMap[p]; ok {
+								dirSizeBefore := dir.Size
+								dir.Size += size
+								if debugMode {
+									log.Printf("DEBUG: Updated dir %s size: %d + %d = %d bytes", 
+										dir.Path, dirSizeBefore, size, dir.Size)
+								}
+							} else {
+								if debugMode {
+									log.Printf("DEBUG: Could not find directory %s in map", p)
+								}
+								break
+							}
+						}
+					} else {
+						if debugMode {
+							log.Printf("DEBUG: Skipping size update because size is zero")
+						}
+					}
+				} else {
+					if debugMode {
+						log.Printf("DEBUG: Could not find parent directory %s in map", parentPath)
+					}
+				}
+			} else {
+				// For directories, initialize size to 0
+				if debugMode {
+					log.Printf("DEBUG: Adding directory %s to dirMap", entryPath)
+				}
+				fileInfo.Size = 0
+				dirMap[entryPath] = &fileInfo
+
+				// Add to parent directory
+				if entryPath != rootPath {
+					parentPath := filepath.Dir(entryPath)
+					if parent, ok := dirMap[parentPath]; ok {
+						if debugMode {
+							log.Printf("DEBUG: Adding directory %s to parent %s", entryPath, parentPath)
+						}
+						parent.Children = append(parent.Children, fileInfo)
+						if debugMode {
+							log.Printf("DEBUG: Parent now has %d children", len(parent.Children))
+						}
+					} else {
+						if debugMode {
+							log.Printf("DEBUG: Could not find parent directory %s in map", parentPath)
+						}
+					}
+				}
+
+				// Recursively scan this directory
+				err = scanRecursive(entryPath)
+				if err != nil {
+					// If scan was canceled, propagate the error
+					if err.Error() == "scan canceled" {
+						return err
+					}
+					// Otherwise, log and continue
+					log.Printf("Error scanning subdirectory %s: %v", entryPath, err)
+				}
+			}
+		}
+		return nil
+	}
+
+	// Start the recursive scan
+	log.Printf("Starting recursive scan of: %s", rootPath)
+	scanErr := scanRecursive(rootPath)
+
+	// Check if scan was canceled
+	if scanErr != nil && scanErr.Error() == "scan canceled" {
+		log.Printf("Scan was canceled")
+		return root, nil
+	}
+
+	// Fix any directory sizes that might be wrong
+	if root.IsDir {
+		fixDirectorySizes(&root, dirMap)
+	}
+
+	log.Printf("Completed recursive scan of: %s (total size: %s)", rootPath, formatBytes(root.Size))
+	return root, nil
+}
+
+// scanWorker function has been removed in favor of a simpler recursive approach
+
+// Helper function to format bytes to human-readable format
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// fixDirectorySizes ensures all directory sizes are the sum of their children
+func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
+	if !dir.IsDir {
+		return dir.Size
+	}
+	
+	var totalSize int64 = 0
+	for i := range dir.Children {
+		childSize := dir.Children[i].Size
+		if dir.Children[i].IsDir {
+			// Recursively fix child directory sizes
+			childPath := dir.Children[i].Path
+			if childDir, ok := dirMap[childPath]; ok {
+				childSize = fixDirectorySizes(childDir, dirMap)
+				// Update the size in our children array too
+				dir.Children[i].Size = childSize
+			}
+		}
+		totalSize += childSize
+	}
+	
+	// Set this directory's size to the sum of its children
+	dir.Size = totalSize
+	return totalSize
+}
+
+func isHidden(path string) bool {
+	name := filepath.Base(path)
+	return strings.HasPrefix(name, ".") && name != "." && name != ".."
+}
