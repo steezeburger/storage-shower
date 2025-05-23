@@ -18,13 +18,17 @@ const selectedSizeText = document.getElementById('selected-size');
 const selectedTypeText = document.getElementById('selected-type');
 const breadcrumbsContainer = document.getElementById('breadcrumbs');
 const breadcrumbTrail = document.getElementById('breadcrumb-trail');
+const previousScansContainer = document.getElementById('previous-scans-container');
+const previousScansList = document.getElementById('previous-scans-list');
 
 // Application state
+// Variables to store state
 let currentData = null;
 let currentPath = [];
 let vizType = 'treemap';
 let scanning = false;
 let progressInterval = null;
+let previousScans = [];
 
 // File type colors
 const typeColors = {
@@ -75,6 +79,9 @@ function init() {
 
     // Add click event for copying file path
     selectedPathText.addEventListener('click', copyPathToClipboard);
+
+    // Fetch previous scans
+    fetchPreviousScans();
 
     // Get home directory on load
     setHomeDirectory();
@@ -165,7 +172,7 @@ async function pollScanProgress() {
 
             // Wait a moment to ensure the data is ready, then fetch the result
             console.log('Fetching scan results in 1 second...');
-            setTimeout(fetchScanResult, 1000);
+            setTimeout(() => fetchScanResult(), 1000);
             return;
         }
 
@@ -217,10 +224,15 @@ async function stopScan() {
 }
 
 // Fetch scan result data
-async function fetchScanResult() {
+async function fetchScanResult(resultId = null) {
     console.log('Fetching scan results...');
     try {
-        const response = await fetch('/api/results');
+        let url = '/api/results';
+        if (resultId) {
+            url += `?id=${resultId}`;
+        }
+        
+        const response = await fetch(url);
         if (!response.ok) {
             // If no results are available yet, try again after a short delay
             if (response.status === 404) {
@@ -246,6 +258,11 @@ async function fetchScanResult() {
         currentData = data;
         currentPath = [];
         renderVisualization(currentData);
+        
+        // Refresh previous scans list if we just completed a new scan
+        if (!resultId) {
+            fetchPreviousScans();
+        }
     } catch (error) {
         console.error('Error fetching scan result:', error);
         alert('Error fetching scan results: ' + error.message);
@@ -258,8 +275,11 @@ function updateScanningUI(isScanning) {
     scanBtn.disabled = isScanning;
     stopBtn.disabled = !isScanning;
     progressContainer.classList.toggle('hidden', !isScanning);
-
+    
+    // Hide previous scans container during scanning
     if (isScanning) {
+        previousScansContainer.classList.add('hidden');
+        
         // Reset progress indicators
         progressBarFill.style.width = '0%';
         scannedItemsText.textContent = '0';
@@ -555,6 +575,54 @@ function copyPathToClipboard() {
                 console.error('Could not copy text: ', err);
             });
     }
+}
+
+// Fetch previous scans from the server
+async function fetchPreviousScans() {
+    try {
+        const response = await fetch('/api/previous-scans');
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${await response.text()}`);
+        }
+        
+        previousScans = await response.json();
+        if (previousScans && previousScans.length > 0) {
+            displayPreviousScans();
+            previousScansContainer.classList.remove('hidden');
+        } else {
+            previousScansContainer.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error fetching previous scans:', error);
+    }
+}
+
+// Display previous scans in the UI
+function displayPreviousScans() {
+    previousScansList.innerHTML = '';
+    
+    previousScans.forEach(scan => {
+        const scanItem = document.createElement('div');
+        scanItem.className = 'previous-scan-item';
+        scanItem.dataset.resultId = scan.resultId;
+        
+        const scanDate = new Date(scan.timestamp);
+        const formattedDate = scanDate.toLocaleString();
+        
+        scanItem.innerHTML = `
+            <div class="previous-scan-path">${scan.path}</div>
+            <div class="previous-scan-info">
+                <span>${formatBytes(scan.size)}</span>
+                <span>${formattedDate}</span>
+            </div>
+        `;
+        
+        scanItem.addEventListener('click', () => {
+            fetchScanResult(scan.resultId);
+        });
+        
+        previousScansList.appendChild(scanItem);
+    });
 }
 
 // Mock data generation for testing

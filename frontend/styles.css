@@ -249,6 +249,53 @@ input[type="checkbox"], input[type="radio"] {
     display: none;
 }
 
+#previous-scans-container {
+    background-color: var(--panel-bg);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#previous-scans-container h3 {
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+#previous-scans-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.previous-scan-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--hover-color);
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+}
+
+.previous-scan-item:hover {
+    background-color: #e0e0e0;
+}
+
+.previous-scan-path {
+    font-weight: 500;
+    word-break: break-all;
+    flex: 1;
+}
+
+.previous-scan-info {
+    display: flex;
+    gap: 15px;
+    color: #666;
+    font-size: 0.9em;
+}
+
 /* Visualization styles */
 .node {
     cursor: pointer;

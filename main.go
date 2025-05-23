@@ -20,8 +20,22 @@ import (
 // Debug flag to control verbose logging
 var debugMode = false
 
+// Maximum number of previous scans to store
+const maxPreviousScans = 10
+
 //go:embed frontend
 var frontendFS embed.FS
+
+// ScanRecord represents a record of a previous scan
+type ScanRecord struct {
+	Path      string    `json:"path"`
+	Timestamp time.Time `json:"timestamp"`
+	ResultID  string    `json:"resultId"`
+	Size      int64     `json:"size"`
+}
+
+// List of previous scans
+var previousScans []ScanRecord
 
 // FileInfo represents a file or directory with its size and children
 type FileInfo struct {
@@ -80,6 +94,7 @@ func startServer() int {
 	http.HandleFunc("/api/scan/stop", handleScanStop)
 	http.HandleFunc("/api/home", handleHome)
 	http.HandleFunc("/api/results", handleResults)
+	http.HandleFunc("/api/previous-scans", handlePreviousScans)
 
 	// Serve static files with proper MIME types
 	http.HandleFunc("/frontend/", serveFrontendFiles)
@@ -293,6 +308,22 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 
 		scanMutex.Lock()
 		resultPath = tempFile.Name()
+		// Add to previous scans
+		resultID := filepath.Base(tempFile.Name())
+		newScan := ScanRecord{
+			Path:      requestData.Path,
+			Timestamp: time.Now(),
+			ResultID:  resultID,
+			Size:      result.Size,
+		}
+		
+		// Add the new scan at the beginning of the slice
+		previousScans = append([]ScanRecord{newScan}, previousScans...)
+		
+		// Limit the number of previous scans
+		if len(previousScans) > maxPreviousScans {
+			previousScans = previousScans[:maxPreviousScans]
+		}
 		scanMutex.Unlock()
 
 		log.Printf("Scan result saved to %s (%s)", tempFile.Name(), formatBytes(int64(len(resultJSON))))
@@ -376,11 +407,31 @@ func handleScanStop(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleResults(w http.ResponseWriter, r *http.Request) {
+	// Check if a specific result ID is requested
+	resultID := r.URL.Query().Get("id")
+	
 	scanMutex.Lock()
 	currentResultPath := resultPath
+	scans := previousScans
 	scanMutex.Unlock()
-
-	if currentResultPath == "" {
+	
+	// If a specific result ID is requested, find its path
+	if resultID != "" {
+		found := false
+		for _, scan := range scans {
+			if scan.ResultID == resultID {
+				// Extract the full path from the ResultID
+				currentResultPath = filepath.Join(os.TempDir(), resultID)
+				found = true
+				break
+			}
+		}
+		
+		if !found {
+			http.Error(w, "Requested scan result not found", http.StatusNotFound)
+			return
+		}
+	} else if currentResultPath == "" {
 		http.Error(w, "No scan results available", http.StatusNotFound)
 		return
 	}
@@ -393,6 +444,16 @@ func handleResults(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
+}
+
+// handlePreviousScans returns a list of previous scan records
+func handlePreviousScans(w http.ResponseWriter, r *http.Request) {
+	scanMutex.Lock()
+	scans := previousScans
+	scanMutex.Unlock()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(scans)
 }
 
 func countFiles(rootPath string, ignoreHidden bool) {
