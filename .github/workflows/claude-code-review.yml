@@ -7,7 +7,6 @@ on:
 jobs:
   claude-code-review:
     runs-on: ubuntu-latest
-    environment: gh-actions
     permissions:
       contents: read
       pull-requests: write
@@ -23,6 +22,7 @@ jobs:
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           direct_prompt: "Review the PR changes. Focus on code quality, potential bugs, and performance issues. Suggest improvements where appropriate. Be concise and specific."
           timeout_minutes: "30"
           allowed_tools: "Bash(git diff --name-only HEAD~1),Bash(git diff HEAD~1),View,GlobTool,GrepTool"
