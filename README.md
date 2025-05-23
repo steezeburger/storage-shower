@@ -136,6 +136,8 @@ just run            # Run the application
 just debug          # Run with debug mode
 just build          # Build the application
 just bundle         # Build macOS application bundle
+just dmg            # Create DMG archive for distribution
+just zip            # Create ZIP archive for distribution
 just clean          # Clean build artifacts
 just deps           # Install dependencies
 just install-linters # Install linters
