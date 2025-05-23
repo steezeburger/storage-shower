@@ -11,6 +11,9 @@ Feature Requests:
 - [ ] the project should have backend tests
 - [ ] the project should have frontend tests
 
+Regressions:
+- [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?
+
 Bugs:
 - [x] the debug logs are always shown regardless of flag existence
 - [ ] the stalled button is sometimes incorrectly shown

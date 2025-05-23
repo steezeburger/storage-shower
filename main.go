@@ -572,6 +572,15 @@ func countFiles(rootPath string, ignoreHidden bool) {
 
 func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 	log.Printf("Beginning directory scan of: %s", rootPath)
+	// Use filepath.Clean to normalize the path
+	rootPath = filepath.Clean(rootPath)
+	// Convert to absolute path to ensure consistency
+	absPath, err := filepath.Abs(rootPath)
+	if err == nil {
+		rootPath = absPath
+	}
+	log.Printf("Normalized path: %s", rootPath)
+	
 	rootInfo, err := os.Stat(rootPath)
 	if err != nil {
 		log.Printf("Failed to stat root path %s: %v", rootPath, err)
@@ -585,8 +594,11 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 		log.Printf("Root is a file with size: %d bytes", initialSize)
 	}
 
+	rootName := filepath.Base(rootPath)
+	log.Printf("Root name: %s", rootName)
+	
 	root := FileInfo{
-		Name:  filepath.Base(rootPath),
+		Name:  rootName,
 		Path:  rootPath,
 		IsDir: rootInfo.IsDir(),
 		Size:  initialSize,
@@ -635,7 +647,15 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 			}
 			scanMutex.Unlock()
 
-			entryPath := filepath.Join(path, entry.Name())
+			entryName := entry.Name()
+			entryPath := filepath.Join(path, entryName)
+			// Normalize entry path to ensure consistency
+			entryPath = filepath.Clean(entryPath)
+			absEntryPath, err := filepath.Abs(entryPath)
+			if err == nil {
+				entryPath = absEntryPath
+			}
+			log.Printf("Processing entry: %s (full path: %s)", entryName, entryPath)
 
 			// Skip hidden files/directories if requested
 			if ignoreHidden && isHidden(entryPath) {
@@ -666,11 +686,14 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 			}
 
 			fileInfo := FileInfo{
-				Name:  entry.Name(),
+				Name:  entryName,
 				Path:  entryPath,
 				IsDir: entry.IsDir(),
 				Size:  initialSize, // Only set size for files, directories will accumulate
 			}
+			
+			log.Printf("Created FileInfo: name=%s, path=%s, isDir=%v, initialSize=%d", 
+				fileInfo.Name, fileInfo.Path, fileInfo.IsDir, fileInfo.Size)
 
 			// Update progress
 			scanMutex.Lock()
@@ -695,6 +718,13 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 
 				// Add to parent directory
 				parentPath := filepath.Dir(entryPath)
+				// Ensure parent path is normalized too
+				parentPath = filepath.Clean(parentPath)
+				absParentPath, err := filepath.Abs(parentPath)
+				if err == nil {
+					parentPath = absParentPath
+				}
+				log.Printf("Parent path for %s: %s", entryPath, parentPath)
 				if parent, ok := dirMap[parentPath]; ok {
 					if debugMode {
 						log.Printf("DEBUG: Adding file %s to parent directory %s", fileInfo.Path, parentPath)
@@ -713,16 +743,16 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 						}
 						// Add file size to all parent directories
 						for p := parentPath; p != ""; p = filepath.Dir(p) {
+							log.Printf("Updating size for parent: %s", p)
 							if dir, ok := dirMap[p]; ok {
 								dirSizeBefore := dir.Size
 								dir.Size += size
-								if debugMode {
-									log.Printf("DEBUG: Updated dir %s size: %d + %d = %d bytes",
-										dir.Path, dirSizeBefore, size, dir.Size)
-								}
+								log.Printf("Updated dir %s size: %d + %d = %d bytes",
+									dir.Path, dirSizeBefore, size, dir.Size)
 							} else {
-								if debugMode {
-									log.Printf("DEBUG: Could not find directory %s in map", p)
+								log.Printf("Could not find directory %s in map, keys:", p)
+								for key := range dirMap {
+									log.Printf("  - %s", key)
 								}
 								break
 							}
@@ -748,6 +778,13 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 				// Add to parent directory
 				if entryPath != rootPath {
 					parentPath := filepath.Dir(entryPath)
+					// Ensure parent path is normalized
+					parentPath = filepath.Clean(parentPath)
+					absParentPath, err := filepath.Abs(parentPath)
+					if err == nil {
+						parentPath = absParentPath
+					}
+					log.Printf("Dir parent path for %s: %s", entryPath, parentPath)
 					if parent, ok := dirMap[parentPath]; ok {
 						if debugMode {
 							log.Printf("DEBUG: Adding directory %s to parent %s", entryPath, parentPath)
@@ -788,9 +825,26 @@ func scanDirectory(rootPath string, ignoreHidden bool) (FileInfo, error) {
 		return root, nil
 	}
 
+	// Log dirMap contents
+	log.Printf("Directory map contents before fixing sizes:")
+	for path, info := range dirMap {
+		log.Printf("  %s -> size: %d, isDir: %v", path, info.Size, info.IsDir)
+	}
+
 	// Fix any directory sizes that might be wrong
 	if root.IsDir {
-		fixDirectorySizes(&root, dirMap)
+		log.Printf("Fixing directory sizes for root: %s", rootPath)
+		// Make a new map with normalized keys to handle any inconsistencies
+		normalizedDirMap := make(map[string]*FileInfo)
+		for k, v := range dirMap {
+			normalizedKey := filepath.Clean(k)
+			absKey, err := filepath.Abs(normalizedKey)
+			if err == nil {
+				normalizedKey = absKey
+			}
+			normalizedDirMap[normalizedKey] = v
+		}
+		fixDirectorySizes(&root, normalizedDirMap)
 	}
 
 	log.Printf("Completed recursive scan of: %s (total size: %s)", rootPath, formatBytes(root.Size))
@@ -819,21 +873,39 @@ func fixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 		return dir.Size
 	}
 
+	log.Printf("Fixing directory size for: %s", dir.Path)
+	
 	var totalSize int64 = 0
 	for i := range dir.Children {
+		log.Printf("  Child %d: %s (initial size: %d, isDir: %v)", 
+			i, dir.Children[i].Path, dir.Children[i].Size, dir.Children[i].IsDir)
+		
 		childSize := dir.Children[i].Size
 		if dir.Children[i].IsDir {
 			// Recursively fix child directory sizes
 			childPath := dir.Children[i].Path
+			// Normalize the child path for consistent lookup
+			childPath = filepath.Clean(childPath)
+			absChildPath, err := filepath.Abs(childPath)
+			if err == nil {
+				childPath = absChildPath
+			}
+			log.Printf("  Looking for child path in dirMap: %s", childPath)
 			if childDir, ok := dirMap[childPath]; ok {
+				log.Printf("  Found child in dirMap, recursing...")
 				childSize = fixDirectorySizes(childDir, dirMap)
 				// Update the size in our children array too
 				dir.Children[i].Size = childSize
+				log.Printf("  Updated child size to: %d", childSize)
+			} else {
+				log.Printf("  WARNING: Child directory not found in dirMap: %s", childPath)
 			}
 		}
 		totalSize += childSize
 	}
 
+	log.Printf("  Total size for %s: %d bytes", dir.Path, totalSize)
+	
 	// Set this directory's size to the sum of its children
 	dir.Size = totalSize
 	return totalSize
