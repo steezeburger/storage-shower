@@ -43,25 +43,66 @@ const typeColors = {
 // Map file extensions to types
 const fileTypeMappings = {
   // Images
-  jpg: "image", jpeg: "image", png: "image", gif: "image", webp: "image",
-  svg: "image", bmp: "image", tiff: "image", ico: "image", heic: "image",
-  
+  jpg: "image",
+  jpeg: "image",
+  png: "image",
+  gif: "image",
+  webp: "image",
+  svg: "image",
+  bmp: "image",
+  tiff: "image",
+  ico: "image",
+  heic: "image",
+
   // Videos
-  mp4: "video", avi: "video", mov: "video", wmv: "video", mkv: "video",
-  webm: "video", flv: "video", m4v: "video", mpg: "video", mpeg: "video",
-  
+  mp4: "video",
+  avi: "video",
+  mov: "video",
+  wmv: "video",
+  mkv: "video",
+  webm: "video",
+  flv: "video",
+  m4v: "video",
+  mpg: "video",
+  mpeg: "video",
+
   // Audio
-  mp3: "audio", wav: "audio", ogg: "audio", flac: "audio", aac: "audio",
-  m4a: "audio", wma: "audio", opus: "audio",
-  
+  mp3: "audio",
+  wav: "audio",
+  ogg: "audio",
+  flac: "audio",
+  aac: "audio",
+  m4a: "audio",
+  wma: "audio",
+  opus: "audio",
+
   // Documents
-  pdf: "document", doc: "document", docx: "document", xls: "document", xlsx: "document",
-  ppt: "document", pptx: "document", txt: "document", rtf: "document", md: "document",
-  csv: "document", json: "document", xml: "document", html: "document", htm: "document",
-  
+  pdf: "document",
+  doc: "document",
+  docx: "document",
+  xls: "document",
+  xlsx: "document",
+  ppt: "document",
+  pptx: "document",
+  txt: "document",
+  rtf: "document",
+  md: "document",
+  csv: "document",
+  json: "document",
+  xml: "document",
+  html: "document",
+  htm: "document",
+
   // Archives
-  zip: "archive", rar: "archive", "7z": "archive", tar: "archive", gz: "archive",
-  bz2: "archive", xz: "archive", iso: "archive", dmg: "archive",
+  zip: "archive",
+  rar: "archive",
+  "7z": "archive",
+  tar: "archive",
+  gz: "archive",
+  bz2: "archive",
+  xz: "archive",
+  iso: "archive",
+  dmg: "archive",
 };
 
 // Initialize the application
@@ -71,9 +112,9 @@ function init() {
   homeBtn.addEventListener("click", setHomeDirectory);
   scanBtn.addEventListener("click", startScan);
   stopBtn.addEventListener("click", stopScan);
-  
+
   // Listen for visualization type changes
-  vizTypeRadios.forEach(radio => {
+  vizTypeRadios.forEach((radio) => {
     radio.addEventListener("change", (e) => {
       vizType = e.target.value;
       if (currentData) {
@@ -81,16 +122,16 @@ function init() {
       }
     });
   });
-  
+
   // Set up click handler for path text to copy
   selectedPathText.addEventListener("click", copyPathToClipboard);
-  
+
   // Set initial home directory
   setHomeDirectory();
-  
+
   // Fetch previous scans
   fetchPreviousScans();
-  
+
   // Set up keyboard shortcuts
   document.addEventListener("keydown", (e) => {
     // Escape key navigates up one level
@@ -98,7 +139,7 @@ function init() {
       currentPath.pop();
       renderVisualization(currentData);
     }
-    
+
     // Enter key starts scan when path input is focused
     if (e.key === "Enter" && document.activeElement === pathInput) {
       startScan();
@@ -113,7 +154,7 @@ async function browseDirectory() {
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     if (data.path) {
       pathInput.value = data.path;
@@ -130,7 +171,7 @@ async function setHomeDirectory() {
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
-    
+
     const data = await response.json();
     if (data.home) {
       pathInput.value = data.home;
@@ -148,18 +189,18 @@ async function startScan() {
     alert("Please enter a directory path");
     return;
   }
-  
+
   // Prepare request data
   const data = {
     path: path,
     ignoreHidden: ignoreHiddenCheckbox.checked,
   };
-  
+
   try {
     // Update UI
     scanning = true;
     updateScanningUI(true);
-    
+
     // Send scan request
     const response = await fetch("/api/scan", {
       method: "POST",
@@ -168,13 +209,13 @@ async function startScan() {
       },
       body: JSON.stringify(data),
     });
-    
+
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
-    
+
     const result = await response.json();
-    
+
     // Start polling for scan progress
     progressInterval = setInterval(pollScanProgress, 500);
   } catch (error) {
@@ -243,7 +284,7 @@ async function stopScan() {
   try {
     const response = await fetch("/api/scan/stop", { method: "POST" });
     const data = await response.json();
-    
+
     // Clear the progress interval
     if (progressInterval) {
       clearInterval(progressInterval);
@@ -261,9 +302,9 @@ async function fetchScanResult(resultId = null) {
     if (resultId) {
       url += `?id=${resultId}`;
     }
-    
+
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         alert("No scan results available. Please run a scan first.");
@@ -272,30 +313,30 @@ async function fetchScanResult(resultId = null) {
       }
       return;
     }
-    
+
     const data = await response.json();
-    
+
     // Reset current path
     currentPath = [];
-    
+
     // Store the data
     currentData = data;
-    
+
     // Render the visualization
     renderVisualization(data);
-    
+
     // Show the visualization container
     visualizationContainer.style.display = "block";
-    
+
     // Update details panel with root directory
     updateDetailsPanel(data);
-    
+
     // Show the breadcrumb trail
     breadcrumbTrail.style.display = "block";
-    
+
     // Update breadcrumbs
     updateBreadcrumbs();
-    
+
     // If this is a new scan, refresh the previous scans list
     if (!resultId) {
       fetchPreviousScans();
@@ -312,10 +353,10 @@ function updateScanningUI(isScanning) {
     // Update button states
     scanBtn.disabled = true;
     stopBtn.disabled = false;
-    
+
     // Show progress container
     progressContainer.classList.remove("hidden");
-    
+
     // Reset progress indicators
     progressBarFill.style.width = "0%";
     scannedItemsText.textContent = "0";
@@ -326,7 +367,7 @@ function updateScanningUI(isScanning) {
     // Update button states
     scanBtn.disabled = false;
     stopBtn.disabled = true;
-    
+
     // Hide progress container
     progressContainer.classList.add("hidden");
   }
@@ -393,7 +434,7 @@ function renderTreemap(data) {
     .attr("width", width)
     .attr("height", height)
     .style("font-family", "sans-serif");
-  
+
   // Create cells for each data point
   const cell = svg
     .selectAll("g")
@@ -463,7 +504,7 @@ function renderTreemap(data) {
 
   // Add file size for each cell if there's room
   cell
-    .filter((d) => d.depth === 1 && (d.y1 - d.y0) > 30)
+    .filter((d) => d.depth === 1 && d.y1 - d.y0 > 30)
     .append("text")
     .attr("x", 3)
     .attr("y", 30)
@@ -559,12 +600,7 @@ function renderSunburst(data) {
     .data(
       root
         .descendants()
-        .filter(
-          (d) =>
-            d.depth &&
-            ((d.y1 - d.y0) * (d.x1 - d.x0) > 0.03) &&
-            d.data.name.length < 15
-        )
+        .filter((d) => d.depth && (d.y1 - d.y0) * (d.x1 - d.x0) > 0.03 && d.data.name.length < 15)
     )
     .enter()
     .append("text")
@@ -598,19 +634,15 @@ function updateDetailsPanel(item) {
     if (item.fileTypes) {
       // Add breakdown of file types if available
       const breakdown = [];
-      if (item.fileTypes.image > 0)
-        breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
-      if (item.fileTypes.video > 0)
-        breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
-      if (item.fileTypes.audio > 0)
-        breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
+      if (item.fileTypes.image > 0) breakdown.push(`Images: ${formatBytes(item.fileTypes.image)}`);
+      if (item.fileTypes.video > 0) breakdown.push(`Videos: ${formatBytes(item.fileTypes.video)}`);
+      if (item.fileTypes.audio > 0) breakdown.push(`Audio: ${formatBytes(item.fileTypes.audio)}`);
       if (item.fileTypes.document > 0)
         breakdown.push(`Documents: ${formatBytes(item.fileTypes.document)}`);
       if (item.fileTypes.archive > 0)
         breakdown.push(`Archives: ${formatBytes(item.fileTypes.archive)}`);
-      if (item.fileTypes.other > 0)
-        breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
-      
+      if (item.fileTypes.other > 0) breakdown.push(`Other: ${formatBytes(item.fileTypes.other)}`);
+
       if (breakdown.length > 0) {
         typeText += " - " + breakdown.join(", ");
       }
@@ -660,25 +692,30 @@ function updateBreadcrumbs() {
 // Get color for file type based on extension
 function getFileTypeColor(extension) {
   if (!extension) return typeColors.other;
-  
+
   const lowerExt = extension.toLowerCase();
   const type = fileTypeMappings[lowerExt];
-  
+
   if (type && typeColors[type]) {
     return typeColors[type];
   }
-  
+
   return typeColors.other;
 }
 
 // Render a multi-colored box representing file type distribution
 function renderMultiColoredBox(rectId, width, height, fileTypes) {
   // Calculate total size
-  const total = fileTypes.image + fileTypes.video + fileTypes.audio + 
-                fileTypes.document + fileTypes.archive + fileTypes.other;
-  
+  const total =
+    fileTypes.image +
+    fileTypes.video +
+    fileTypes.audio +
+    fileTypes.document +
+    fileTypes.archive +
+    fileTypes.other;
+
   if (total === 0) return;
-  
+
   // Calculate proportions
   const imageProp = fileTypes.image / total;
   const videoProp = fileTypes.video / total;
@@ -686,11 +723,11 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
   const documentProp = fileTypes.document / total;
   const archiveProp = fileTypes.archive / total;
   const otherProp = fileTypes.other / total;
-  
+
   // Create segments
   const segments = [];
   let currentPosition = 0;
-  
+
   if (imageProp > 0) {
     segments.push({
       color: typeColors.image,
@@ -699,7 +736,7 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
     });
     currentPosition += imageProp;
   }
-  
+
   if (videoProp > 0) {
     segments.push({
       color: typeColors.video,
@@ -708,7 +745,7 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
     });
     currentPosition += videoProp;
   }
-  
+
   if (audioProp > 0) {
     segments.push({
       color: typeColors.audio,
@@ -717,7 +754,7 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
     });
     currentPosition += audioProp;
   }
-  
+
   if (documentProp > 0) {
     segments.push({
       color: typeColors.document,
@@ -726,7 +763,7 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
     });
     currentPosition += documentProp;
   }
-  
+
   if (archiveProp > 0) {
     segments.push({
       color: typeColors.archive,
@@ -735,7 +772,7 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
     });
     currentPosition += archiveProp;
   }
-  
+
   if (otherProp > 0) {
     segments.push({
       color: typeColors.other,
@@ -743,22 +780,22 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
       end: 1,
     });
   }
-  
+
   // Create pattern definition with stripes
   const svg = d3.select("svg");
   const patternId = `pattern-${rectId.replace("rect-", "")}`;
-  
+
   const defs = svg.append("defs");
-  
+
   const pattern = defs
     .append("pattern")
     .attr("id", patternId)
     .attr("width", width)
     .attr("height", height)
     .attr("patternUnits", "userSpaceOnUse");
-  
+
   // Add colored rectangles
-  segments.forEach(segment => {
+  segments.forEach((segment) => {
     pattern
       .append("rect")
       .attr("x", 0)
@@ -772,22 +809,23 @@ function renderMultiColoredBox(rectId, width, height, fileTypes) {
 // Format bytes to human readable format
 function formatBytes(bytes) {
   if (bytes === 0) return "0 Bytes";
-  
+
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
-  
+
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
 // Copy path to clipboard
 function copyPathToClipboard() {
   const path = selectedPathText.textContent;
-  
+
   if (!path || path === "No item selected") return;
-  
-  navigator.clipboard.writeText(path)
+
+  navigator.clipboard
+    .writeText(path)
     .then(() => {
       // Show temporary confirmation
       const originalText = selectedPathText.textContent;
@@ -796,7 +834,7 @@ function copyPathToClipboard() {
         selectedPathText.textContent = originalText;
       }, 1500);
     })
-    .catch(err => {
+    .catch((err) => {
       console.error("Failed to copy path:", err);
     });
 }
@@ -808,12 +846,12 @@ async function fetchPreviousScans() {
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
-    
+
     const scans = await response.json();
-    
+
     // Store scans in state
     previousScans = scans;
-    
+
     // Display previous scans
     displayPreviousScans();
   } catch (error) {
@@ -824,27 +862,27 @@ async function fetchPreviousScans() {
 // Display previous scans in the UI
 function displayPreviousScans() {
   previousScansList.innerHTML = "";
-  
+
   if (previousScans.length > 0) {
     previousScansContainer.classList.remove("hidden");
-    
-    previousScans.forEach(scan => {
+
+    previousScans.forEach((scan) => {
       const scanItem = document.createElement("div");
       scanItem.className = "previous-scan-item";
-      
+
       // Format date
       const scanDate = new Date(scan.timestamp);
       const formattedDate = scanDate.toLocaleString();
-      
+
       scanItem.innerHTML = `
         <div class="scan-path">${scan.path}</div>
         <div class="scan-info">${formattedDate} - ${formatBytes(scan.size)}</div>
       `;
-      
+
       scanItem.addEventListener("click", () => {
         fetchScanResult(scan.resultId);
       });
-      
+
       previousScansList.appendChild(scanItem);
     });
   } else {

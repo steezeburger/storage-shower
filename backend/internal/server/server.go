@@ -70,7 +70,7 @@ func setupFrontendHandlers(frontendFS embed.FS) {
 			w.Write(content)
 			return
 		}
-		
+
 		// For non-root paths, try to serve static files
 		filePath := r.URL.Path
 		if filePath != "/" {
@@ -78,11 +78,11 @@ func setupFrontendHandlers(frontendFS embed.FS) {
 			serveStaticFile(w, r, frontendSubFS, filePath)
 			return
 		}
-		
+
 		// If we get here, return 404
 		http.NotFound(w, r)
 	})
-	
+
 	// Add explicit handlers for the main frontend assets
 	http.HandleFunc("/frontend/app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
@@ -93,7 +93,7 @@ func setupFrontendHandlers(frontendFS embed.FS) {
 		}
 		w.Write(content)
 	})
-	
+
 	http.HandleFunc("/frontend/styles.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
 		content, err := fs.ReadFile(frontendSubFS, "styles.css")
@@ -124,14 +124,14 @@ func serveStaticFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, path st
 	case strings.HasSuffix(path, ".svg"):
 		w.Header().Set("Content-Type", "image/svg+xml")
 	}
-	
+
 	// Try to read the file
 	content, err := fs.ReadFile(fsys, path)
 	if err != nil {
 		http.Error(w, "File not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Write the content to the response
 	w.Write(content)
 }
@@ -188,16 +188,16 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 // handleScanStatus returns the current scan status
 func handleScanStatus(w http.ResponseWriter, r *http.Request) {
 	status := scan.GetScanStatus()
-	
+
 	// Create a response with the correct structure expected by the frontend
 	response := struct {
-		InProgress bool         `json:"inProgress"`
+		InProgress bool            `json:"inProgress"`
 		Progress   scan.ScanStatus `json:"progress"`
 	}{
 		InProgress: status.InProgress,
 		Progress:   status,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

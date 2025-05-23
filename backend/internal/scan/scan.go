@@ -130,16 +130,16 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	}
 
 	// Fix directory sizes
-		if DebugMode {
-			log.Println("Fixing directory sizes...")
-		}
-		fileinfo.FixDirectorySizes(&root, dirMap)
+	if DebugMode {
+		log.Println("Fixing directory sizes...")
+	}
+	fileinfo.FixDirectorySizes(&root, dirMap)
 
-		// Trim the tree to reduce size before saving
-		trimmedRoot := trimTreeForStorage(&root, 0)
-	
-		// Save result to a temporary file
-		resultJSON, err := json.Marshal(trimmedRoot)
+	// Trim the tree to reduce size before saving
+	trimmedRoot := trimTreeForStorage(&root, 0)
+
+	// Save result to a temporary file
+	resultJSON, err := json.Marshal(trimmedRoot)
 	if err != nil {
 		log.Printf("Error marshaling result: %v", err)
 		statusMutex.Lock()
@@ -369,18 +369,16 @@ func GetScanStatus() ScanStatus {
 	return status
 }
 
-
-
 // trimTreeForStorage reduces the size of the directory tree by limiting depth
 // and trimming nodes with small sizes
 func trimTreeForStorage(node *fileinfo.FileInfo, depth int) fileinfo.FileInfo {
 	// Create a copy of the node
 	result := *node
-	
+
 	// For deep trees, limit the depth to reduce JSON size
 	maxDepth := 6
 	minSizeToKeep := int64(1024 * 1024) // 1MB minimum size to keep at deeper levels
-	
+
 	// If we're at the max depth, only keep children above the size threshold
 	if depth >= maxDepth {
 		// For deep levels, only keep significant items
@@ -394,7 +392,7 @@ func trimTreeForStorage(node *fileinfo.FileInfo, depth int) fileinfo.FileInfo {
 					keptChildren = append(keptChildren, trimmedChild)
 				}
 			}
-			
+
 			// If we have too many children, keep only the largest ones
 			maxChildren := 10
 			if len(keptChildren) > maxChildren {
@@ -402,16 +400,16 @@ func trimTreeForStorage(node *fileinfo.FileInfo, depth int) fileinfo.FileInfo {
 				sort.Slice(keptChildren, func(i, j int) bool {
 					return keptChildren[i].Size > keptChildren[j].Size
 				})
-				
+
 				// Keep only the largest items
 				keptChildren = keptChildren[:maxChildren]
 			}
-			
+
 			result.Children = keptChildren
 		}
 		return result
 	}
-	
+
 	// For normal depth, recursively process children
 	if len(result.Children) > 0 {
 		newChildren := make([]fileinfo.FileInfo, len(result.Children))
@@ -420,7 +418,7 @@ func trimTreeForStorage(node *fileinfo.FileInfo, depth int) fileinfo.FileInfo {
 		}
 		result.Children = newChildren
 	}
-	
+
 	return result
 }
 
@@ -461,7 +459,7 @@ func GetLatestScanResult() (fileinfo.FileInfo, error) {
 	if err := json.Unmarshal(data, &result); err != nil {
 		return fileinfo.FileInfo{}, fmt.Errorf("failed to parse scan result: %v", err)
 	}
-	
+
 	return result, nil
 }
 
@@ -498,7 +496,7 @@ func GetScanResultByID(resultID string) (fileinfo.FileInfo, error) {
 	if err := json.Unmarshal(data, &result); err != nil {
 		return fileinfo.FileInfo{}, fmt.Errorf("failed to parse scan result: %v", err)
 	}
-	
+
 	return result, nil
 }
 
