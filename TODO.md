@@ -12,7 +12,7 @@ Feature Requests:
 - [x] the projet should have a github action to check the formatting and run the linter
 - [x] the project should have backend tests
 - [x] the project should have frontend tests
-- [ ] the project should have a github action to run the tests
+- [x] the project should have a github action to run the tests
 
 Regressions:
 - [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?
