@@ -1,4 +1,4 @@
-package main
+package fileinfo
 
 import (
 	"testing"
@@ -54,7 +54,7 @@ func TestFileInfo_Size(t *testing.T) {
 	}
 	
 	// Fix directory sizes
-	fixDirectorySizes(&root, dirMap)
+	FixDirectorySizes(&root, dirMap)
 
 	// Test the root size (should be sum of all children)
 	expectedSize := int64(600) // 100 + 200 + 300
@@ -95,9 +95,9 @@ func TestIsHidden(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := isHidden(test.path)
+		result := IsHidden(test.path)
 		if result != test.expected {
-			t.Errorf("isHidden(%s) = %v, want %v", test.path, result, test.expected)
+			t.Errorf("IsHidden(%s) = %v, want %v", test.path, result, test.expected)
 		}
 	}
 }
@@ -118,9 +118,9 @@ func TestFormatBytes(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result := formatBytes(test.bytes)
+		result := FormatBytes(test.bytes)
 		if result != test.expected {
-			t.Errorf("formatBytes(%d) = %s, want %s", test.bytes, result, test.expected)
+			t.Errorf("FormatBytes(%d) = %s, want %s", test.bytes, result, test.expected)
 		}
 	}
 }
@@ -139,24 +139,46 @@ func TestFileExtension(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fileInfo := FileInfo{
-			Name: filepath.Base(test.path),
-			Path: test.path,
+		// Extract extension using the same logic as in the main code
+		extension := ""
+		// Skip extension extraction for hidden files
+		filename := filepath.Base(test.path)
+		if !strings.HasPrefix(filename, ".") || filename == "." || filename == ".." {
+			if ext := filepath.Ext(test.path); ext != "" {
+				extension = ext[1:] // Remove the leading dot
+			}
 		}
 		
-		for _, test := range tests {
-			// Extract extension using the same logic as in the main code
-			extension := ""
-			// Skip extension extraction for hidden files
-			filename := filepath.Base(test.path)
-			if !strings.HasPrefix(filename, ".") || filename == "." || filename == ".." {
-				if ext := filepath.Ext(test.path); ext != "" {
-					extension = ext[1:] // Remove the leading dot
-				}
-			}
-		
-			if extension != test.expectedExt {
+		if extension != test.expectedExt {
 			t.Errorf("File extension for %s = %s, want %s", test.path, extension, test.expectedExt)
 		}
 	}
 }
+
+func TestGetFileType(t *testing.T) {
+	tests := []struct {
+		extension string
+		expected  string
+	}{
+		{"jpg", "image"},
+		{"png", "image"},
+		{"mp4", "video"},
+		{"mov", "video"},
+		{"mp3", "audio"},
+		{"wav", "audio"},
+		{"pdf", "document"},
+		{"docx", "document"},
+		{"zip", "archive"},
+		{"tar.gz", "archive"},
+		{"exe", "other"},
+		{"", "other"},
+	}
+
+	for _, test := range tests {
+		result := GetFileType(test.extension)
+		if result != test.expected {
+			t.Errorf("GetFileType(%s) = %s, want %s", test.extension, result, test.expected)
+		}
+	}
+}
+

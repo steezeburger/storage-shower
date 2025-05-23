@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"time"
@@ -95,3 +95,4 @@ func (d *StallDetector) SetStartupGracePeriod(seconds int) {
 		d.startupGracePeriodSeconds = seconds
 	}
 }
+
