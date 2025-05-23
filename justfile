@@ -9,11 +9,11 @@ format *args="":
     @echo "Formatting Go code..."
     go fmt ./...
     @echo "Formatting frontend code..."
-    {{if args == "--check"}}
-        npx prettier --check "frontend/**/*.{js,html,css}"
-    {{else}}
-        npx prettier --write "frontend/**/*.{js,html,css}"
-    {{endif}}
+    @if args == "--check"
+    npx prettier --check "frontend/**/*.{js,html,css}"
+    @else
+    npx prettier --write "frontend/**/*.{js,html,css}"
+    @endif
 
 # Lint all code
 lint: lint-go lint-js lint-html lint-css
@@ -157,7 +157,7 @@ test-backend:
 
 # Run frontend tests
 test-frontend:
-    echo "Frontend tests not implemented yet"
+    npx jest --config frontend/jest.config.js
 
 # Run all tests
 test: test-backend test-frontend
