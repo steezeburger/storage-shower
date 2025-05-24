@@ -2,6 +2,7 @@ Feature Requests 5/23:
 - [x] the user should see a legend to describe what the different colors used represent
 - [x] chart should be zoomable so i can see the whole thing for large starbursts
 - [x] should be a `>` between breadcrumb chips
+- [ ] should show single files better. they're either not shown or so small the user can't see them
 
 Regressions:
 - [x] some scans showing 0 bytes again, like /Users/jessesnyder/code/retro-gfx/, but it works fine for /Users/jessesnyder/code/projects/archived. /Users/jessesnyder/code/projects/storage-shower/ is broken though. related to dashes?

@@ -599,16 +599,16 @@ func matchesSearchTerm(fileInfo fileinfo.FileInfo, searchTerm string) bool {
 	}
 
 	searchLower := strings.ToLower(searchTerm)
-	
+
 	// Check if the search term is in the file name
 	if strings.Contains(strings.ToLower(fileInfo.Name), searchLower) {
 		return true
 	}
-	
+
 	// Check if the search term matches the extension (without the dot)
 	if fileInfo.Extension != "" && strings.ToLower(fileInfo.Extension) == searchLower {
 		return true
 	}
-	
+
 	return false
 }
