@@ -1,5 +1,6 @@
 // DOM Elements
 const pathInput = document.getElementById("path-input");
+const searchInput = document.getElementById("search-input");
 const browseBtn = document.getElementById("browse-btn");
 const homeBtn = document.getElementById("home-btn");
 const scanBtn = document.getElementById("scan-btn");
@@ -19,6 +20,9 @@ const selectedTypeText = document.getElementById("selected-type");
 const breadcrumbTrail = document.getElementById("breadcrumb-trail");
 const previousScansContainer = document.getElementById("previous-scans-container");
 const previousScansList = document.getElementById("previous-scans-list");
+const searchResultsContainer = document.getElementById("search-results-container");
+const searchResultsCount = document.getElementById("search-results-count");
+const searchResultsList = document.getElementById("search-results-list");
 const colorLegend = document.getElementById("color-legend");
 const legendItems = document.querySelector(".legend-items");
 const zoomControls = document.getElementById("zoom-controls");
@@ -233,6 +237,7 @@ async function startScan() {
   const requestData = {
     path: path,
     ignoreHidden: ignoreHiddenCheckbox.checked,
+    searchTerm: searchInput.value.trim(),
   };
 
   try {
@@ -289,6 +294,11 @@ async function pollScanProgress() {
     progressPercentText.textContent = percentage + "%";
     progressBarFill.style.width = percentage + "%";
     currentPathText.textContent = progress.currentPath;
+    
+    // Update search results if search term is provided
+    if (progress.searchTerm && progress.searchResults) {
+      updateSearchResults(progress.searchResults, progress.searchTerm);
+    }
 
     // Check if scan is stalled
     if (data.stalled) {
@@ -399,6 +409,16 @@ function updateScanningUI(isScanning) {
     totalItemsText.textContent = "0";
     progressPercentText.textContent = "0.0%";
     currentPathText.textContent = "Starting scan...";
+    
+    // Show search results container if search term is provided
+    const searchTerm = searchInput.value.trim();
+    if (searchTerm) {
+      searchResultsContainer.classList.remove("hidden");
+      searchResultsList.innerHTML = "";
+      searchResultsCount.textContent = "0 files found";
+    } else {
+      searchResultsContainer.classList.add("hidden");
+    }
   } else {
     // Update button states
     scanBtn.disabled = false;
@@ -1006,6 +1026,60 @@ function displayPreviousScans() {
     });
   } else {
     previousScansContainer.classList.add("hidden");
+  }
+}
+
+// Update search results display
+function updateSearchResults(searchResults, searchTerm) {
+  // Update count
+  searchResultsCount.textContent = `${searchResults.length} files found matching "${searchTerm}"`;
+  
+  // Clear and populate results list
+  searchResultsList.innerHTML = "";
+  
+  // Limit to last 50 results to avoid performance issues
+  const displayResults = searchResults.slice(-50);
+  
+  displayResults.forEach((result) => {
+    const resultItem = document.createElement("div");
+    resultItem.className = "search-result-item";
+    
+    const fileName = document.createElement("div");
+    fileName.className = "search-result-name";
+    fileName.textContent = result.name;
+    
+    const filePath = document.createElement("div");
+    filePath.className = "search-result-path";
+    filePath.textContent = result.path;
+    filePath.title = "Click to copy path";
+    
+    const fileSize = document.createElement("div");
+    fileSize.className = "search-result-size";
+    fileSize.textContent = formatBytes(result.size);
+    
+    // Add click handler to copy path
+    filePath.addEventListener("click", () => {
+      navigator.clipboard.writeText(result.path).then(() => {
+        const original = filePath.textContent;
+        filePath.textContent = "Copied!";
+        setTimeout(() => {
+          filePath.textContent = original;
+        }, 1000);
+      });
+    });
+    
+    resultItem.appendChild(fileName);
+    resultItem.appendChild(filePath);
+    resultItem.appendChild(fileSize);
+    searchResultsList.appendChild(resultItem);
+  });
+  
+  // If we're showing only a subset, add a note
+  if (searchResults.length > 50) {
+    const moreItem = document.createElement("div");
+    moreItem.className = "search-result-more";
+    moreItem.textContent = `... and ${searchResults.length - 50} more files (showing latest 50)`;
+    searchResultsList.appendChild(moreItem);
   }
 }
 

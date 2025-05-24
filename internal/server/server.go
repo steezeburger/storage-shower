@@ -147,6 +147,7 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 	var requestData struct {
 		Path         string `json:"path"`
 		IgnoreHidden bool   `json:"ignoreHidden"`
+		SearchTerm   string `json:"searchTerm"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&requestData)
@@ -170,7 +171,7 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 
 	// Start scan in a goroutine
 	go func() {
-		_, err := scan.ScanDirectory(requestData.Path, requestData.IgnoreHidden)
+		_, err := scan.ScanDirectory(requestData.Path, requestData.IgnoreHidden, requestData.SearchTerm)
 		if err != nil {
 			log.Printf("Scan error: %v", err)
 		} else {
