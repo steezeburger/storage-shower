@@ -44,8 +44,8 @@ func StartServer(webFS embed.FS) int {
 	// Load previous scans
 	scan.LoadPreviousScans()
 
-	// Open the browser
-	openBrowser(fmt.Sprintf("http://localhost:%d", port))
+	// Don't open browser automatically - let user navigate manually
+	// openBrowser(fmt.Sprintf("http://localhost:%d", port))
 
 	return port
 }

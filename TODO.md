@@ -9,7 +9,7 @@ Regressions:
 - [x] localhost/:1 Refused to execute script from 'http://localhost:8080/frontend/app.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.
 
 Bugs:
-- [ ] /scans 404s
+- [x] /scans 404s
 - [x] the debug logs are always shown regardless of flag existence
 - [x] clicking into directory view from main view treemap errors
   ```

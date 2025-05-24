@@ -55,6 +55,26 @@ run *args:
 debug:
     just run --debug
 
+# Start the server in background
+start:
+    @echo "Starting Storage Shower server..."
+    @pkill -f "storage-shower\|go run" 2>/dev/null || true
+    @nohup just run > /dev/null 2>&1 & echo "Server started on http://localhost:8080"
+
+# Stop the server
+stop:
+    @echo "Stopping Storage Shower server..."
+    @pkill -f "storage-shower\|go run" 2>/dev/null || true
+    @lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+    @echo "Server stopped"
+
+# Restart the server (with rebuild for embedded files)
+restart:
+    @echo "Restarting Storage Shower server..."
+    @just stop
+    @just build
+    @nohup ./storage-shower > /dev/null 2>&1 & echo "Server restarted on http://localhost:8080"
+
 # Build the application
 build:
     @go build -o storage-shower main.go

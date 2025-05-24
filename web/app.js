@@ -891,7 +891,7 @@ function copyPathToClipboard() {
 // Fetch and display previous scans
 async function fetchPreviousScans() {
   try {
-    const response = await fetch("/api/scans");
+    const response = await fetch("/api/previous-scans");
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
     }
@@ -943,20 +943,20 @@ function displayPreviousScans() {
 function initializeColorLegend() {
   // Clear existing legend items
   legendItems.innerHTML = "";
-  
+
   // Create legend items for each file type
   Object.entries(typeColors).forEach(([type, color]) => {
     const legendItem = document.createElement("div");
     legendItem.className = "legend-item";
-    
+
     const colorBox = document.createElement("div");
     colorBox.className = "legend-color";
     colorBox.style.backgroundColor = color;
-    
+
     const label = document.createElement("span");
     label.className = "legend-label";
     label.textContent = type;
-    
+
     legendItem.appendChild(colorBox);
     legendItem.appendChild(label);
     legendItems.appendChild(legendItem);
