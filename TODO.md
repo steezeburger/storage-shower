@@ -9,6 +9,7 @@ Regressions:
 - [x] localhost/:1 Refused to execute script from 'http://localhost:8080/frontend/app.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled.
 
 Bugs:
+- [ ] /scans 404s
 - [x] the debug logs are always shown regardless of flag existence
 - [x] clicking into directory view from main view treemap errors
   ```
@@ -21,7 +22,7 @@ Bugs:
   (anonymous)	@	app.js:450
   (anonymous)	@	d3.v7.min.js:2
   ```
-- [ ] the stalled button is sometimes incorrectly shown
+- [x] the stalled button is sometimes incorrectly shown
 
 Feature Requests 5/22:
 - [x] i want to click the filepath on web to copy the full path to my clipboard

@@ -110,23 +110,64 @@ This project uses [just](https://github.com/casey/just) as a command runner. Ava
 
 # Testing Feedback Loop Workflow
 
-When making changes to the web frontend and testing them:
+## Automated Browser Testing with SSE Server + Playwright MCP
 
-1. **Start the server efficiently**: Use `nohup just run > /dev/null 2>&1 & echo "Server started"` to avoid timeout issues
-2. **Kill existing processes if needed**: Use `pkill -f storage-shower; pkill -f "go run"` to stop any running servers
-3. **After making JavaScript/CSS changes**: Always refresh the browser (`browser_navigate` to the same URL) to pick up the latest changes
-4. **For Go backend changes**: Restart the server completely since Go changes require recompilation
+This project supports automated browser testing using the SSE server with Playwright MCP. This allows for comprehensive testing of UI changes and user interactions.
 
-Example workflow:
+### Basic Testing Workflow:
+
+1. **Kill existing processes**: `pkill -f "storage-shower\|go run" 2>/dev/null || true`
+2. **Build and start server**: For embedded file changes (HTML/CSS/JS), rebuild first:
+   ```bash
+   go build -o storage-shower . && nohup ./storage-shower > /dev/null 2>&1 & echo "Server started"
+   ```
+   For Go-only changes, use: `nohup just run > /dev/null 2>&1 & echo "Server started"`
+3. **Test with browser automation**: Use the SSE server browser tools to navigate, interact, and verify changes
+
+### Important Notes for Embedded Files:
+
+- **Web files (HTML/CSS/JS) are embedded at compile time** using Go's `//go:embed` directive
+- Changes to `web/` files require rebuilding the binary to take effect
+- Use `go build` followed by running the binary for embedded file changes
+- Use `just run` (go run) only when Go source files change
+
+### Browser Testing Commands:
+
 ```bash
-# Kill any existing server
-pkill -f storage-shower; pkill -f "go run"
+# Navigate to the application
+mcp__sse-server__browser_navigate(url="http://localhost:8080")
 
-# Start server in background 
-nohup just run > /dev/null 2>&1 & echo "Server started"
+# Take screenshots to verify UI
+mcp__sse-server__browser_take_screenshot()
 
-# Make your changes to web/app.js or web/styles.css
+# Interact with elements (example: start a scan)
+mcp__sse-server__browser_type(element="textbox", text="/path/to/test")
+mcp__sse-server__browser_click(element="button 'Scan'")
 
-# Refresh browser to test changes
-# (browser_navigate to http://localhost:8080)
+# Wait for operations to complete
+mcp__sse-server__browser_wait_for(time=3)
+
+# Verify results with snapshots
+mcp__sse-server__browser_snapshot()
+
+# Check for JavaScript errors and network issues
+mcp__sse-server__browser_console_messages()  # Check for JS errors, 404s, etc.
+mcp__sse-server__browser_network_requests()  # View all network requests and responses
+```
+
+### Complete Testing Example:
+
+```bash
+# 1. Stop existing server
+pkill -f "storage-shower\|go run" 2>/dev/null || true
+
+# 2. Rebuild server with updated embedded files (if web files changed)
+go build -o storage-shower . && nohup ./storage-shower > /dev/null 2>&1 & echo "Server rebuilt and started"
+
+# 3. Test the changes using browser automation
+# - Navigate to http://localhost:8080
+# - Perform user interactions
+# - Take screenshots to verify UI
+# - Test functionality with scans
+# - Verify new features work as expected
 ```

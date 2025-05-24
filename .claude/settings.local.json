@@ -18,7 +18,8 @@
       "mcp__sse-server__browser_snapshot",
       "mcp__sse-server__browser_type",
       "mcp__sse-server__browser_click",
-      "mcp__sse-server__browser_wait_for"
+      "mcp__sse-server__browser_wait_for",
+      "mcp__sse-server__browser_network_requests"
     ],
     "deny": []
   }
