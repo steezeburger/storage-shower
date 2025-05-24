@@ -79,6 +79,9 @@ This project uses [just](https://github.com/casey/just) as a command runner. Ava
 - `just` or `just --list` - Show all available commands
 - `just run [args]` - Run the application
 - `just debug` - Run with debug mode
+- `just start` - Start server in background
+- `just stop` - Stop the server
+- `just restart` - Restart server (with rebuild for embedded files)
 - `just deps` - Install dependencies (Go modules + npm packages)
 
 ### Building
@@ -116,20 +119,17 @@ This project supports automated browser testing using the SSE server with Playwr
 
 ### Basic Testing Workflow:
 
-1. **Kill existing processes**: `pkill -f "storage-shower\|go run" 2>/dev/null || true`
-2. **Build and start server**: For embedded file changes (HTML/CSS/JS), rebuild first:
-   ```bash
-   go build -o storage-shower . && nohup ./storage-shower > /dev/null 2>&1 & echo "Server started"
-   ```
-   For Go-only changes, use: `nohup just run > /dev/null 2>&1 & echo "Server started"`
+1. **Stop existing server**: `just stop`
+2. **Start server**: For embedded file changes (HTML/CSS/JS), use: `just restart`
+   For Go-only changes, use: `just start`
 3. **Test with browser automation**: Use the SSE server browser tools to navigate, interact, and verify changes
 
 ### Important Notes for Embedded Files:
 
 - **Web files (HTML/CSS/JS) are embedded at compile time** using Go's `//go:embed` directive
 - Changes to `web/` files require rebuilding the binary to take effect
-- Use `go build` followed by running the binary for embedded file changes
-- Use `just run` (go run) only when Go source files change
+- Use `just restart` for embedded file changes (builds and starts server)
+- Use `just start` only when Go source files change
 
 ### Browser Testing Commands:
 
@@ -159,13 +159,13 @@ mcp__sse-server__browser_network_requests()  # View all network requests and res
 
 ```bash
 # 1. Stop existing server
-pkill -f "storage-shower\|go run" 2>/dev/null || true
+just stop
 
 # 2. Run pre-push checks to validate code quality
 just prepush  # Runs format, test, and lint checks
 
-# 3. Rebuild server with updated embedded files (if web files changed)
-go build -o storage-shower . && nohup ./storage-shower > /dev/null 2>&1 & echo "Server rebuilt and started"
+# 3. Restart server with updated embedded files (if web files changed)
+just restart
 
 # 4. Test the changes using browser automation
 # - Navigate to http://localhost:8080

@@ -713,6 +713,12 @@ function updateBreadcrumbs() {
   currentPath.forEach((segment) => {
     pathSoFar.push(segment);
 
+    // Add separator before breadcrumb item (except for the first one after Root)
+    const separator = document.createElement("span");
+    separator.className = "breadcrumb-separator";
+    separator.textContent = ">";
+    breadcrumbTrail.appendChild(separator);
+
     const breadcrumb = document.createElement("span");
     breadcrumb.className = "breadcrumb-item";
     breadcrumb.textContent = segment;

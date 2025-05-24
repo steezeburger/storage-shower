@@ -295,6 +295,13 @@ input[type="radio"] {
   background-color: #e0e0e0;
 }
 
+.breadcrumb-separator {
+  color: #666;
+  font-size: 13px;
+  margin: 0 5px;
+  align-self: center;
+}
+
 .hidden {
   display: none;
 }
