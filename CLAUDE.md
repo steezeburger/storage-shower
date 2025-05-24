@@ -7,7 +7,7 @@ Storage Shower is a disk space visualization tool that helps users understand wh
 ## Code Structure
 
 - `main.go` - Backend Go server with API endpoints
-- `frontend/` - Frontend web application
+- `web/` - Web application
   - `index.html` - Main HTML structure
   - `app.js` - Frontend JavaScript application
   - `styles.css` - CSS styling
@@ -66,7 +66,7 @@ When creating pull requests:
 
 When implementing new features:
 
-1. Maintain the existing architecture separation (Go backend, JS frontend)
+1. Maintain the existing architecture separation (Go backend, JS web)
 2. Use the existing event-based communication patterns
 3. Follow the established UI/UX patterns
 4. Consider both performance and usability

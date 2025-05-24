@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/steezeburger/storage-shower/internal/logger"
 )
 
 func TestFileInfo_Size(t *testing.T) {
@@ -54,7 +56,8 @@ func TestFileInfo_Size(t *testing.T) {
 	}
 
 	// Fix directory sizes
-	FixDirectorySizes(&root, dirMap)
+	noOpLogger := logger.NewNoOpLogger()
+	FixDirectorySizes(&root, dirMap, noOpLogger)
 
 	// Test the root size (should be sum of all children)
 	expectedSize := int64(600) // 100 + 200 + 300

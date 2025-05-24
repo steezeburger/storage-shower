@@ -12,12 +12,12 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/steezeburger/storage-shower/backend/internal/fileinfo"
-	"github.com/steezeburger/storage-shower/backend/internal/scan"
+	"github.com/steezeburger/storage-shower/internal/fileinfo"
+	"github.com/steezeburger/storage-shower/internal/scan"
 )
 
 // StartServer starts the HTTP server and returns the port it's listening on
-func StartServer(frontendFS embed.FS) int {
+func StartServer(webFS embed.FS) int {
 	// Set up API routes
 	http.HandleFunc("/api/scan", handleScan)
 	http.HandleFunc("/api/scan/status", handleScanStatus)
@@ -28,7 +28,7 @@ func StartServer(frontendFS embed.FS) int {
 	http.HandleFunc("/api/previous-scans", handlePreviousScans)
 
 	// Serve frontend files
-	setupFrontendHandlers(frontendFS)
+	setupWebHandlers(webFS)
 
 	// Use port 8080
 	port := 8080
@@ -50,18 +50,18 @@ func StartServer(frontendFS embed.FS) int {
 	return port
 }
 
-// setupFrontendHandlers configures handlers for serving the embedded frontend files
-func setupFrontendHandlers(frontendFS embed.FS) {
-	// Get the frontend subfolder
-	frontendSubFS, err := fs.Sub(frontendFS, "frontend")
+// setupWebHandlers configures handlers for serving the embedded web files
+func setupWebHandlers(webFS embed.FS) {
+	// Get the web subfolder
+	webSubFS, err := fs.Sub(webFS, "web")
 	if err != nil {
-		log.Fatalf("Failed to get frontend subfolder: %v", err)
+		log.Fatalf("Failed to get web subfolder: %v", err)
 	}
 
 	// Serve the index.html file for the root path
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
-			content, err := fs.ReadFile(frontendSubFS, "index.html")
+			content, err := fs.ReadFile(webSubFS, "index.html")
 			if err != nil {
 				http.Error(w, "Failed to read index.html", http.StatusInternalServerError)
 				return
@@ -75,7 +75,7 @@ func setupFrontendHandlers(frontendFS embed.FS) {
 		filePath := r.URL.Path
 		if filePath != "/" {
 			filePath = strings.TrimPrefix(filePath, "/")
-			serveStaticFile(w, r, frontendSubFS, filePath)
+			serveStaticFile(w, r, webSubFS, filePath)
 			return
 		}
 
@@ -83,10 +83,10 @@ func setupFrontendHandlers(frontendFS embed.FS) {
 		http.NotFound(w, r)
 	})
 
-	// Add explicit handlers for the main frontend assets
-	http.HandleFunc("/frontend/app.js", func(w http.ResponseWriter, r *http.Request) {
+	// Add explicit handlers for the main web assets
+	http.HandleFunc("/web/app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
-		content, err := fs.ReadFile(frontendSubFS, "app.js")
+		content, err := fs.ReadFile(webSubFS, "app.js")
 		if err != nil {
 			http.Error(w, "Failed to read app.js", http.StatusInternalServerError)
 			return
@@ -94,9 +94,9 @@ func setupFrontendHandlers(frontendFS embed.FS) {
 		w.Write(content)
 	})
 
-	http.HandleFunc("/frontend/styles.css", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/web/styles.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
-		content, err := fs.ReadFile(frontendSubFS, "styles.css")
+		content, err := fs.ReadFile(webSubFS, "styles.css")
 		if err != nil {
 			http.Error(w, "Failed to read styles.css", http.StatusInternalServerError)
 			return

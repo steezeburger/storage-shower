@@ -2,9 +2,10 @@ package fileinfo
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
+
+	"github.com/steezeburger/storage-shower/internal/logger"
 )
 
 // FileTypeStats represents statistics about file types in a directory
@@ -29,18 +30,18 @@ type FileInfo struct {
 }
 
 // FixDirectorySizes updates directory sizes based on their children
-func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
+func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo, log logger.Logger) int64 {
 	if !dir.IsDir {
 		return dir.Size
 	}
 
-	log.Printf("Fixing directory size for: %s", dir.Path)
+	log.Debug("Fixing directory size for: %s", dir.Path)
 
 	var totalSize int64 = 0
 	fileTypeStats := &FileTypeStats{}
 
 	for i := range dir.Children {
-		log.Printf("  Child %d: %s (initial size: %d, isDir: %v)",
+		log.Debug("  Child %d: %s (initial size: %d, isDir: %v)",
 			i, dir.Children[i].Path, dir.Children[i].Size, dir.Children[i].IsDir)
 
 		childSize := dir.Children[i].Size
@@ -53,14 +54,14 @@ func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 			if err == nil {
 				childPath = absChildPath
 			}
-			log.Printf("  Looking for child path in dirMap: %s", childPath)
+			log.Debug("  Looking for child path in dirMap: %s", childPath)
 			if childDir, ok := dirMap[childPath]; ok {
-				log.Printf("  Found child in dirMap, recursing...")
-				childSize = FixDirectorySizes(childDir, dirMap)
+				log.Debug("  Found child in dirMap, recursing...")
+				childSize = FixDirectorySizes(childDir, dirMap, log)
 				// Update the size in our children array too
 				dir.Children[i].Size = childSize
 				dir.Children[i].FileTypes = childDir.FileTypes
-				log.Printf("  Updated child size to: %d", childSize)
+				log.Debug("  Updated child size to: %d", childSize)
 
 				// Aggregate file type stats from child directory
 				if childDir.FileTypes != nil {
@@ -72,7 +73,7 @@ func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 					fileTypeStats.Other += childDir.FileTypes.Other
 				}
 			} else {
-				log.Printf("  WARNING: Child directory not found in dirMap: %s", childPath)
+				log.Debug("  WARNING: Child directory not found in dirMap: %s", childPath)
 			}
 		} else {
 			// For files, add their size to the appropriate file type category
@@ -95,8 +96,8 @@ func FixDirectorySizes(dir *FileInfo, dirMap map[string]*FileInfo) int64 {
 		totalSize += childSize
 	}
 
-	log.Printf("  Total size for %s: %d bytes", dir.Path, totalSize)
-	log.Printf("  File type stats: Image: %d, Video: %d, Audio: %d, Document: %d, Archive: %d, Other: %d",
+	log.Debug("  Total size for %s: %d bytes", dir.Path, totalSize)
+	log.Debug("  File type stats: Image: %d, Video: %d, Audio: %d, Document: %d, Archive: %d, Other: %d",
 		fileTypeStats.Image, fileTypeStats.Video, fileTypeStats.Audio,
 		fileTypeStats.Document, fileTypeStats.Archive, fileTypeStats.Other)
 

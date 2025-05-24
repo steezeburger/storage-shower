@@ -29,7 +29,7 @@ A disk space visualization tool that helps you understand where your storage is 
 
 - Go 1.16 or later
 - Git
-- Node.js and npm (for frontend formatting and linting)
+- Node.js and npm (for web formatting and linting)
 - Just command runner (optional, for development tasks)
 
 ### Building from Source
@@ -76,16 +76,16 @@ If you don't have Just installed, you can run the formatters directly:
 # Format Go code
 go fmt ./...
 
-# Format frontend code
-npx prettier --write "frontend/**/*.{js,html,css}"
+# Format web code
+npx prettier --write "web/**/*.{js,html,css}"
 
 # Lint Go code
 go vet ./...
 
-# Lint frontend code
-npx eslint "frontend/**/*.js"
-npx htmlhint "frontend/**/*.html"
-npx stylelint "frontend/**/*.css"
+# Lint web code
+npx eslint "web/**/*.js"
+npx htmlhint "web/**/*.html"
+npx stylelint "web/**/*.css"
 ```
 
 Configuration files:
@@ -149,9 +149,9 @@ just validate       # Format and lint code
 ### Core Components
 
 - **main.go**: Core Go application with filesystem scanning and API
-- **frontend/index.html**: HTML structure for the visualization UI
-- **frontend/styles.css**: CSS styling for the application
-- **frontend/app.js**: JavaScript for D3.js visualizations and UI interaction
+- **web/index.html**: HTML structure for the visualization UI
+- **web/styles.css**: CSS styling for the application
+- **web/app.js**: JavaScript for D3.js visualizations and UI interaction
 
 ### Visualizations
 

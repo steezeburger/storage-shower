@@ -10,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/steezeburger/storage-shower/backend/internal/fileinfo"
+	"github.com/steezeburger/storage-shower/internal/fileinfo"
+	"github.com/steezeburger/storage-shower/internal/logger"
 )
 
 // Maximum number of previous scans to store
@@ -133,7 +134,8 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	if DebugMode {
 		log.Println("Fixing directory sizes...")
 	}
-	fileinfo.FixDirectorySizes(&root, dirMap)
+	debugLogger := logger.NewDebugLogger(DebugMode)
+	fileinfo.FixDirectorySizes(&root, dirMap, debugLogger)
 
 	// Trim the tree to reduce size before saving
 	trimmedRoot := trimTreeForStorage(&root, 0)

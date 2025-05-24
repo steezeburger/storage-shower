@@ -7,12 +7,12 @@ default:
 # Format all code
 format *args="":
     @echo "Formatting Go code..."
-    @(cd backend && go fmt ./...)
-    @echo "Formatting frontend code..."
+    @go fmt ./...
+    @echo "Formatting web code..."
     @if [ "{{args}}" = "--check" ]; then \
-        cd frontend && npm run format:check; \
+        cd web && npm run format:check; \
     else \
-        cd frontend && npm run format; \
+        cd web && npm run format; \
     fi
 alias f := format
 
@@ -23,33 +23,33 @@ alias l := lint
 # Lint Go code
 lint-go:
     @echo "Linting Go code..."
-    @(cd backend && go vet ./...)
+    @go vet ./...
 
 # Lint JavaScript
 lint-js:
     @echo "Linting JavaScript..."
-    @(cd frontend && npm run lint)
+    @(cd web && npm run lint)
 
 # Lint HTML
 lint-html:
     @echo "Linting HTML..."
-    @(cd frontend && npm run lint-html)
+    @(cd web && npm run lint-html)
 
 # Lint CSS
 lint-css:
     @echo "Linting CSS..."
-    @(cd frontend && npm run lint-css)
+    @(cd web && npm run lint-css)
 
 # Fix linting issues where possible
 lint-fix:
     @echo "Fixing JavaScript linting issues..."
-    @(cd frontend && npm run lint:fix)
+    @(cd web && npm run lint:fix)
     @echo "Fixing CSS linting issues..."
-    @(cd frontend && npm run lint-css:fix)
+    @(cd web && npm run lint-css:fix)
 
 # Run the application
 run *args:
-    @(cd backend && go run cmd/storage-shower/main.go {{args}})
+    @go run main.go {{args}}
 
 # Run with debug mode
 debug:
@@ -57,7 +57,7 @@ debug:
 
 # Build the application
 build:
-    @(cd backend && go build -o ../storage-shower cmd/storage-shower/main.go)
+    @go build -o storage-shower main.go
 
 # Build macOS application bundle
 bundle app_name="Storage Shower" app_version="1.0.0" app_identifier="com.example.storageShower":
@@ -80,7 +80,7 @@ bundle app_name="Storage Shower" app_version="1.0.0" app_identifier="com.example
 
     # Compile the Go application for macOS
     echo "Compiling Storage Shower..."
-    (cd backend && GOOS=darwin GOARCH=amd64 go build -o "../$APP_BUNDLE/Contents/MacOS/storage-shower" cmd/storage-shower/main.go)
+    GOOS=darwin GOARCH=amd64 go build -o "$APP_BUNDLE/Contents/MacOS/storage-shower" main.go
 
     # Generate Info.plist
     echo '<?xml version="1.0" encoding="UTF-8"?>' > "$APP_BUNDLE/Contents/Info.plist"
@@ -143,26 +143,26 @@ clean:
 
 # Install dependencies
 deps:
-    @(cd backend && go mod download)
-    @(cd frontend && npm install)
+    @go mod download
+    @(cd web && npm install)
 
 # Install linters
 install-linters:
     @echo "Installing Go linters..."
     go install golang.org/x/lint/golint@latest
-    @echo "Installing frontend linters (via npm)..."
-    @(cd frontend && npm install --save-dev eslint htmlhint stylelint stylelint-config-standard)
+    @echo "Installing web linters (via npm)..."
+    @(cd web && npm install --save-dev eslint htmlhint stylelint stylelint-config-standard)
 
 # Run backend tests
 test-backend:
-    @(cd backend && go test -v ./...)
+    @go test -v ./...
 
-# Run frontend tests
-test-frontend:
-    @(cd frontend && npm run test)
+# Run web tests
+test-web:
+    @(cd web && npm run test)
 
 # Run all tests
-test: test-backend test-frontend
+test: test-backend test-web
 alias t := test
 
 # Validate code (format and lint)
@@ -170,7 +170,7 @@ validate: format lint
 
 # Run all checks before pushing to the repository
 prepush: format test
-    @echo "Skipping frontend linting during prepush (many expected errors in test files)..."
+    @echo "Skipping web linting during prepush (many expected errors in test files)..."
     @echo "Running only Go linting..."
     @just lint-go
     @echo "All checks passed successfully!"
