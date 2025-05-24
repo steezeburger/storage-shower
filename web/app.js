@@ -399,7 +399,7 @@ function renderTreemap(data) {
     )
     .sort((a, b) => b.value - a.value);
 
-  // If we're navigating to a subdirectory, filter the data
+  // Find the current node if navigating into a subdirectory
   let currentHierarchy = hierarchy;
   if (currentPath.length > 0) {
     let currentNode = hierarchy;
@@ -410,7 +410,11 @@ function renderTreemap(data) {
       }
       currentNode = nextNode;
     }
-    currentHierarchy = currentNode;
+    // Create a new hierarchy from the current node's data
+    currentHierarchy = d3
+      .hierarchy(currentNode.data)
+      .sum((d) => (d.size > 0 ? d.size : 0))
+      .sort((a, b) => b.value - a.value);
   }
 
   // Create treemap layout
@@ -439,7 +443,11 @@ function renderTreemap(data) {
     .data(root.descendants())
     .enter()
     .append("g")
-    .attr("transform", (d) => `translate(${d.x0},${d.y0})`)
+    .attr("transform", (d) => {
+      const x = isNaN(d.x0) ? 0 : d.x0;
+      const y = isNaN(d.y0) ? 0 : d.y0;
+      return `translate(${x},${y})`;
+    })
     .on("click", function (event, d) {
       // Navigate deeper on click if it's a directory
       if (d.data.isDir && d.children && d.depth > 0) {
@@ -454,25 +462,35 @@ function renderTreemap(data) {
       updateDetailsPanel(d.data);
     });
 
-  // Add rectangles for each cell - either solid color or multi-colored pattern
+  // Add rectangles for each cell - show direct children (depth 1)
   cell
     .filter((d) => d.depth === 1)
     .append("rect")
     .attr("id", (d) => `rect-${d.data.name.replace(/\s+/g, "-")}`)
-    .attr("width", (d) => d.x1 - d.x0)
-    .attr("height", (d) => d.y1 - d.y0)
+    .attr("width", (d) => {
+      const width = d.x1 - d.x0;
+      return isNaN(width) || width < 0 ? 0 : width;
+    })
+    .attr("height", (d) => {
+      const height = d.y1 - d.y0;
+      return isNaN(height) || height < 0 ? 0 : height;
+    })
     .attr("fill", (d) => {
       if (d.data.isDir) {
         // For directories, use a standard color
         return typeColors.directory;
       } else if (d.data.fileTypes) {
         // For directories with file type stats, use a multi-colored pattern
-        renderMultiColoredBox(
-          `rect-${d.data.name.replace(/\s+/g, "-")}`,
-          d.x1 - d.x0,
-          d.y1 - d.y0,
-          d.data.fileTypes
-        );
+        const boxWidth = d.x1 - d.x0;
+        const boxHeight = d.y1 - d.y0;
+        if (!isNaN(boxWidth) && !isNaN(boxHeight) && boxWidth > 0 && boxHeight > 0) {
+          renderMultiColoredBox(
+            `rect-${d.data.name.replace(/\s+/g, "-")}`,
+            boxWidth,
+            boxHeight,
+            d.data.fileTypes
+          );
+        }
         return `url(#pattern-${d.data.name.replace(/\s+/g, "-")})`;
       } else {
         // For files, color by extension
@@ -489,7 +507,8 @@ function renderTreemap(data) {
     .text((d) => {
       let name = d.data.name;
       // Truncate long names
-      const maxLength = Math.floor((d.x1 - d.x0) / 8); // Approximate chars that fit
+      const cellWidth = d.x1 - d.x0;
+      const maxLength = Math.floor((!isNaN(cellWidth) && cellWidth > 0 ? cellWidth : 50) / 8); // Approximate chars that fit
       if (name.length > maxLength) {
         name = name.substring(0, maxLength - 3) + "...";
       }
@@ -536,7 +555,11 @@ function renderSunburst(data) {
       }
       currentNode = nextNode;
     }
-    currentHierarchy = currentNode;
+    // Create a new hierarchy from the current node's data, making it the new root
+    currentHierarchy = d3
+      .hierarchy(currentNode.data)
+      .sum((d) => (d.size > 0 ? d.size : 0))
+      .sort((a, b) => b.value - a.value);
   }
 
   // Create the arc generator

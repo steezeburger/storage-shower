@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "mcp__browsermcp__browser_click",
+      "mcp__browsermcp__browser_type",
+      "mcp__browsermcp__browser_press_key",
+      "mcp__browsermcp__browser_snapshot",
+      "mcp__browsermcp__browser_get_console_logs",
+      "mcp__browsermcp__browser_navigate",
+      "mcp__browsermcp__browser_screenshot",
+      "Bash(grep:*)",
+      "mcp__browsermcp__browser_wait"
     ],
     "deny": []
   }

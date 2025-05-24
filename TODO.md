@@ -1,4 +1,5 @@
 Feature Requests 5/23:
+- [ ] the user should see a legend to describe what the different colors used represent
 - [ ] chart should be zoomable so i can see the whole thing for large starbursts
 - [ ] should be a `>` between breadcrumb chips
 
@@ -9,7 +10,7 @@ Regressions:
 
 Bugs:
 - [x] the debug logs are always shown regardless of flag existence
-- [ ] clicking into directory view from main view treemap errors
+- [x] clicking into directory view from main view treemap errors
   ```
   d3.v7.min.js:2 Error: <rect> attribute height: Expected length, "NaN".
   (anonymous)	@	d3.v7.min.js:2
