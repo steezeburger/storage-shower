@@ -1035,47 +1035,47 @@ function displayPreviousScans() {
 // Handle search input changes
 function handleSearchInput() {
   const searchTerm = searchInput.value.trim();
-  
+
   if (!currentData) {
     return;
   }
-  
+
   if (searchTerm === "") {
     // Hide search results if no search term
     searchResultsContainer.classList.add("hidden");
     return;
   }
-  
+
   // Show search results container
   searchResultsContainer.classList.remove("hidden");
-  
+
   // Search through current data
   const searchResults = [];
-  
+
   function searchInData(data, path = "") {
     if (data.name && data.name.toLowerCase().includes(searchTerm.toLowerCase())) {
       searchResults.push({
         name: data.name,
         path: path + "/" + data.name,
         size: data.size || 0,
-        type: data.type || "unknown"
+        type: data.type || "unknown",
       });
     }
-    
+
     if (data.children) {
-      data.children.forEach(child => {
+      data.children.forEach((child) => {
         searchInData(child, path + "/" + data.name);
       });
     }
   }
-  
+
   // Start search from root
   if (currentData.children) {
-    currentData.children.forEach(child => {
+    currentData.children.forEach((child) => {
       searchInData(child, "");
     });
   }
-  
+
   // Update search results display
   updateSearchResults(searchResults, searchTerm);
 }
