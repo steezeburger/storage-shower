@@ -18,14 +18,13 @@ jobs:
         with:
           go-version: '1.22'
           cache: true
-          cache-dependency-path: backend/go.sum
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: web/package-lock.json
 
       - name: Setup Just
         uses: extractions/setup-just@v1
@@ -38,8 +37,8 @@ jobs:
       - name: Run backend tests
         run: just test-backend
 
-      - name: Run frontend tests
-        run: just test-frontend
+      - name: Run web tests
+        run: just test-web
 
       - name: Upload test coverage
         uses: actions/upload-artifact@v4
