@@ -23,7 +23,6 @@ const previousScansList = document.getElementById("previous-scans-list");
 const searchResultsContainer = document.getElementById("search-results-container");
 const searchResultsCount = document.getElementById("search-results-count");
 const searchResultsList = document.getElementById("search-results-list");
-const colorLegend = document.getElementById("color-legend");
 const legendItems = document.querySelector(".legend-items");
 const zoomControls = document.getElementById("zoom-controls");
 const zoomInBtn = document.getElementById("zoom-in-btn");
@@ -581,7 +580,11 @@ function renderTreemap(data) {
       let name = d.data.name;
       // Truncate long names
       const cellWidth = d.x1 - d.x0;
-      const maxLength = Math.floor((!isNaN(cellWidth) && cellWidth > 0 ? cellWidth : 50) / 8); // Approximate chars that fit
+      // Calculate max chars that fit in cell width
+      const defaultWidth = 50;
+      const charWidth = 8;
+      const validWidth = !isNaN(cellWidth) && cellWidth > 0 ? cellWidth : defaultWidth;
+      const maxLength = Math.floor(validWidth / charWidth);
       if (name.length > maxLength) {
         name = name.substring(0, maxLength - 3) + "...";
       }

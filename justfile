@@ -189,10 +189,7 @@ alias t := test
 validate: format lint
 
 # Run all checks before pushing to the repository
-prepush: format test
-    @echo "Skipping web linting during prepush (many expected errors in test files)..."
-    @echo "Running only Go linting..."
-    @just lint-go
+prepush: format test lint
     @echo "All checks passed successfully!"
 
 # Create a DMG file for distribution

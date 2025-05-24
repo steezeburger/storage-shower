@@ -139,13 +139,13 @@ input[type="radio"] {
   min-width: 35px;
   padding: 6px 8px;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 #zoom-reset-btn {
   min-width: auto;
   padding: 6px 12px;
-  font-weight: normal;
+  font-weight: 400;
 }
 
 #progress-container {
@@ -272,6 +272,7 @@ input[type="radio"] {
 }
 
 /* Color Legend */
+
 #color-legend {
   margin-top: 20px;
   padding-top: 15px;
