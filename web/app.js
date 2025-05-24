@@ -1,5 +1,6 @@
 // DOM Elements
 const pathInput = document.getElementById("path-input");
+const searchInput = document.getElementById("search-input");
 const browseBtn = document.getElementById("browse-btn");
 const homeBtn = document.getElementById("home-btn");
 const scanBtn = document.getElementById("scan-btn");
@@ -19,7 +20,9 @@ const selectedTypeText = document.getElementById("selected-type");
 const breadcrumbTrail = document.getElementById("breadcrumb-trail");
 const previousScansContainer = document.getElementById("previous-scans-container");
 const previousScansList = document.getElementById("previous-scans-list");
-const colorLegend = document.getElementById("color-legend");
+const searchResultsContainer = document.getElementById("search-results-container");
+const searchResultsCount = document.getElementById("search-results-count");
+const searchResultsList = document.getElementById("search-results-list");
 const legendItems = document.querySelector(".legend-items");
 const zoomControls = document.getElementById("zoom-controls");
 const zoomInBtn = document.getElementById("zoom-in-btn");
@@ -118,6 +121,9 @@ function init() {
   homeBtn.addEventListener("click", setHomeDirectory);
   scanBtn.addEventListener("click", startScan);
   stopBtn.addEventListener("click", stopScan);
+
+  // Set up search input event listener
+  searchInput.addEventListener("input", handleSearchInput);
 
   // Listen for visualization type changes
   vizTypeRadios.forEach((radio) => {
@@ -233,6 +239,7 @@ async function startScan() {
   const requestData = {
     path: path,
     ignoreHidden: ignoreHiddenCheckbox.checked,
+    searchTerm: searchInput.value.trim(),
   };
 
   try {
@@ -289,6 +296,11 @@ async function pollScanProgress() {
     progressPercentText.textContent = percentage + "%";
     progressBarFill.style.width = percentage + "%";
     currentPathText.textContent = progress.currentPath;
+
+    // Update search results if search term is provided
+    if (progress.searchTerm && progress.searchResults) {
+      updateSearchResults(progress.searchResults, progress.searchTerm);
+    }
 
     // Check if scan is stalled
     if (data.stalled) {
@@ -399,6 +411,16 @@ function updateScanningUI(isScanning) {
     totalItemsText.textContent = "0";
     progressPercentText.textContent = "0.0%";
     currentPathText.textContent = "Starting scan...";
+
+    // Show search results container if search term is provided
+    const searchTerm = searchInput.value.trim();
+    if (searchTerm) {
+      searchResultsContainer.classList.remove("hidden");
+      searchResultsList.innerHTML = "";
+      searchResultsCount.textContent = "0 files found";
+    } else {
+      searchResultsContainer.classList.add("hidden");
+    }
   } else {
     // Update button states
     scanBtn.disabled = false;
@@ -558,7 +580,11 @@ function renderTreemap(data) {
       let name = d.data.name;
       // Truncate long names
       const cellWidth = d.x1 - d.x0;
-      const maxLength = Math.floor((!isNaN(cellWidth) && cellWidth > 0 ? cellWidth : 50) / 8); // Approximate chars that fit
+      // Calculate max chars that fit in cell width
+      const defaultWidth = 50;
+      const charWidth = 8;
+      const validWidth = !isNaN(cellWidth) && cellWidth > 0 ? cellWidth : defaultWidth;
+      const maxLength = Math.floor(validWidth / charWidth);
       if (name.length > maxLength) {
         name = name.substring(0, maxLength - 3) + "...";
       }
@@ -1006,6 +1032,108 @@ function displayPreviousScans() {
     });
   } else {
     previousScansContainer.classList.add("hidden");
+  }
+}
+
+// Handle search input changes
+function handleSearchInput() {
+  const searchTerm = searchInput.value.trim();
+
+  if (!currentData) {
+    return;
+  }
+
+  if (searchTerm === "") {
+    // Hide search results if no search term
+    searchResultsContainer.classList.add("hidden");
+    return;
+  }
+
+  // Show search results container
+  searchResultsContainer.classList.remove("hidden");
+
+  // Search through current data
+  const searchResults = [];
+
+  function searchInData(data, path = "") {
+    if (data.name && data.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      searchResults.push({
+        name: data.name,
+        path: path + "/" + data.name,
+        size: data.size || 0,
+        type: data.type || "unknown",
+      });
+    }
+
+    if (data.children) {
+      data.children.forEach((child) => {
+        searchInData(child, path + "/" + data.name);
+      });
+    }
+  }
+
+  // Start search from root
+  if (currentData.children) {
+    currentData.children.forEach((child) => {
+      searchInData(child, "");
+    });
+  }
+
+  // Update search results display
+  updateSearchResults(searchResults, searchTerm);
+}
+
+// Update search results display
+function updateSearchResults(searchResults, searchTerm) {
+  // Update count
+  searchResultsCount.textContent = `${searchResults.length} files found matching "${searchTerm}"`;
+
+  // Clear and populate results list
+  searchResultsList.innerHTML = "";
+
+  // Limit to last 50 results to avoid performance issues
+  const displayResults = searchResults.slice(-50);
+
+  displayResults.forEach((result) => {
+    const resultItem = document.createElement("div");
+    resultItem.className = "search-result-item";
+
+    const fileName = document.createElement("div");
+    fileName.className = "search-result-name";
+    fileName.textContent = result.name;
+
+    const filePath = document.createElement("div");
+    filePath.className = "search-result-path";
+    filePath.textContent = result.path;
+    filePath.title = "Click to copy path";
+
+    const fileSize = document.createElement("div");
+    fileSize.className = "search-result-size";
+    fileSize.textContent = formatBytes(result.size);
+
+    // Add click handler to copy path
+    filePath.addEventListener("click", () => {
+      navigator.clipboard.writeText(result.path).then(() => {
+        const original = filePath.textContent;
+        filePath.textContent = "Copied!";
+        setTimeout(() => {
+          filePath.textContent = original;
+        }, 1000);
+      });
+    });
+
+    resultItem.appendChild(fileName);
+    resultItem.appendChild(filePath);
+    resultItem.appendChild(fileSize);
+    searchResultsList.appendChild(resultItem);
+  });
+
+  // If we're showing only a subset, add a note
+  if (searchResults.length > 50) {
+    const moreItem = document.createElement("div");
+    moreItem.className = "search-result-more";
+    moreItem.textContent = `... and ${searchResults.length - 50} more files (showing latest 50)`;
+    searchResultsList.appendChild(moreItem);
   }
 }
 

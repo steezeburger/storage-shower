@@ -25,6 +25,14 @@
             Ignore Hidden Files
           </label>
         </div>
+        <div class="search-controls">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Search for files (e.g., 'md', 'photo')"
+          />
+          <label for="search-input">File Search</label>
+        </div>
         <div class="viz-controls">
           <label class="radio-label">
             <input type="radio" name="viz-type" value="treemap" checked />
@@ -53,6 +61,14 @@
           >)
         </div>
         <div id="current-path">...</div>
+      </div>
+
+      <div id="search-results-container" class="hidden">
+        <h3>Search Results</h3>
+        <div id="search-results-count">0 files found</div>
+        <div id="search-results-list">
+          <!-- Search results will be displayed here -->
+        </div>
       </div>
 
       <div class="main-container">

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,14 +26,24 @@ type ScanRecord struct {
 	Size      int64     `json:"size"`
 }
 
+// SearchResult represents a file that matches the search criteria
+type SearchResult struct {
+	Path      string `json:"path"`
+	Name      string `json:"name"`
+	Size      int64  `json:"size"`
+	Extension string `json:"extension,omitempty"`
+}
+
 // ScanStatus contains information about a scan in progress
 type ScanStatus struct {
-	InProgress   bool    `json:"inProgress"`
-	CurrentPath  string  `json:"currentPath"`
-	ScannedItems int     `json:"scannedItems"`
-	TotalItems   int     `json:"totalItems"`
-	Progress     float64 `json:"progress"`
-	Stalled      bool    `json:"stalled,omitempty"`
+	InProgress    bool           `json:"inProgress"`
+	CurrentPath   string         `json:"currentPath"`
+	ScannedItems  int            `json:"scannedItems"`
+	TotalItems    int            `json:"totalItems"`
+	Progress      float64        `json:"progress"`
+	Stalled       bool           `json:"stalled,omitempty"`
+	SearchTerm    string         `json:"searchTerm,omitempty"`
+	SearchResults []SearchResult `json:"searchResults,omitempty"`
 }
 
 // Shared variables
@@ -63,7 +74,7 @@ var (
 )
 
 // ScanDirectory scans a directory and returns file information
-func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error) {
+func ScanDirectory(rootPath string, ignoreHidden bool, searchTerm string) (fileinfo.FileInfo, error) {
 	log.Printf("Beginning directory scan of: %s", rootPath)
 	// Use filepath.Clean to normalize the path
 	rootPath = filepath.Clean(rootPath)
@@ -77,11 +88,13 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	// Initialize scan status
 	statusMutex.Lock()
 	scanStatus = ScanStatus{
-		InProgress:   true,
-		CurrentPath:  rootPath,
-		ScannedItems: 0,
-		TotalItems:   1, // Start with at least 1 to avoid division by zero
-		Progress:     0.0,
+		InProgress:    true,
+		CurrentPath:   rootPath,
+		ScannedItems:  0,
+		TotalItems:    1, // Start with at least 1 to avoid division by zero
+		Progress:      0.0,
+		SearchTerm:    searchTerm,
+		SearchResults: make([]SearchResult, 0),
 	}
 	lastScannedItems = 0
 	lastProgressTime = time.Now()
@@ -115,7 +128,7 @@ func ScanDirectory(rootPath string, ignoreHidden bool) (fileinfo.FileInfo, error
 	dirMap[rootPath] = &root
 
 	// Scan the directory structure recursively
-	err = scanRecursive(rootPath, &root, dirMap, ignoreHidden)
+	err = scanRecursive(rootPath, &root, dirMap, ignoreHidden, searchTerm)
 
 	// Check if scan was canceled
 	if err != nil && err.Error() == "scan canceled" {
@@ -249,7 +262,7 @@ func countFiles(rootPath string, ignoreHidden bool) {
 }
 
 // scanRecursive recursively scans a directory
-func scanRecursive(path string, dir *fileinfo.FileInfo, dirMap map[string]*fileinfo.FileInfo, ignoreHidden bool) error {
+func scanRecursive(path string, dir *fileinfo.FileInfo, dirMap map[string]*fileinfo.FileInfo, ignoreHidden bool, searchTerm string) error {
 	// Check for cancellation
 	select {
 	case <-cancelScan:
@@ -341,6 +354,20 @@ func scanRecursive(path string, dir *fileinfo.FileInfo, dirMap map[string]*filei
 		// Add to parent's children
 		dir.Children = append(dir.Children, entryInfo)
 
+		// Check if file matches search term (if search term is provided)
+		if searchTerm != "" && !entry.IsDir() {
+			if matchesSearchTerm(entryInfo, searchTerm) {
+				statusMutex.Lock()
+				scanStatus.SearchResults = append(scanStatus.SearchResults, SearchResult{
+					Path:      entryPath,
+					Name:      entryName,
+					Size:      fileSize,
+					Extension: extension,
+				})
+				statusMutex.Unlock()
+			}
+		}
+
 		// If it's a directory, add to dirMap and recursively scan
 		if entry.IsDir() {
 			// Store a reference to the directory in the map
@@ -348,7 +375,7 @@ func scanRecursive(path string, dir *fileinfo.FileInfo, dirMap map[string]*filei
 			dirMap[entryPath] = &dir.Children[dirIndex]
 
 			// Recursively scan the directory
-			err := scanRecursive(entryPath, &dir.Children[dirIndex], dirMap, ignoreHidden)
+			err := scanRecursive(entryPath, &dir.Children[dirIndex], dirMap, ignoreHidden, searchTerm)
 			if err != nil {
 				return err
 			}
@@ -563,4 +590,25 @@ func LoadPreviousScans() {
 	statusMutex.Lock()
 	PreviousScans = scans
 	statusMutex.Unlock()
+}
+
+// matchesSearchTerm checks if a file matches the search criteria
+func matchesSearchTerm(fileInfo fileinfo.FileInfo, searchTerm string) bool {
+	if searchTerm == "" {
+		return false
+	}
+
+	searchLower := strings.ToLower(searchTerm)
+
+	// Check if the search term is in the file name
+	if strings.Contains(strings.ToLower(fileInfo.Name), searchLower) {
+		return true
+	}
+
+	// Check if the search term matches the extension (without the dot)
+	if fileInfo.Extension != "" && strings.ToLower(fileInfo.Extension) == searchLower {
+		return true
+	}
+
+	return false
 }
