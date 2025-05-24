@@ -1,5 +1,5 @@
 Feature Requests 5/23:
-- [ ] the user should see a legend to describe what the different colors used represent
+- [x] the user should see a legend to describe what the different colors used represent
 - [ ] chart should be zoomable so i can see the whole thing for large starbursts
 - [ ] should be a `>` between breadcrumb chips
 
