@@ -21,6 +21,10 @@ const previousScansContainer = document.getElementById("previous-scans-container
 const previousScansList = document.getElementById("previous-scans-list");
 const colorLegend = document.getElementById("color-legend");
 const legendItems = document.querySelector(".legend-items");
+const zoomControls = document.getElementById("zoom-controls");
+const zoomInBtn = document.getElementById("zoom-in-btn");
+const zoomOutBtn = document.getElementById("zoom-out-btn");
+const zoomResetBtn = document.getElementById("zoom-reset-btn");
 
 // Application state
 let currentData = null;
@@ -29,6 +33,7 @@ let vizType = "treemap";
 // scanning state is managed by UI updates
 let progressInterval = null;
 let previousScans = [];
+let currentZoom = null;
 
 // File type colors
 const typeColors = {
@@ -118,10 +123,40 @@ function init() {
   vizTypeRadios.forEach((radio) => {
     radio.addEventListener("change", (e) => {
       vizType = e.target.value;
+
+      // Show/hide zoom controls based on visualization type
+      if (vizType === "sunburst") {
+        zoomControls.style.display = "flex";
+      } else {
+        zoomControls.style.display = "none";
+      }
+
       if (currentData) {
         renderVisualization(currentData);
       }
     });
+  });
+
+  // Set up zoom control event listeners
+  zoomInBtn.addEventListener("click", () => {
+    if (currentZoom) {
+      const svg = d3.select(visualizationContainer).select("svg");
+      svg.transition().call(currentZoom.scaleBy, 1.5);
+    }
+  });
+
+  zoomOutBtn.addEventListener("click", () => {
+    if (currentZoom) {
+      const svg = d3.select(visualizationContainer).select("svg");
+      svg.transition().call(currentZoom.scaleBy, 1 / 1.5);
+    }
+  });
+
+  zoomResetBtn.addEventListener("click", () => {
+    if (currentZoom) {
+      const svg = d3.select(visualizationContainer).select("svg");
+      svg.transition().call(currentZoom.transform, d3.zoomIdentity);
+    }
   });
 
   // Set up click handler for path text to copy
@@ -379,6 +414,16 @@ function renderVisualization(data) {
   // Clear the visualization container
   visualizationContainer.innerHTML = "";
 
+  // Reset zoom reference
+  currentZoom = null;
+
+  // Show/hide zoom controls based on visualization type
+  if (vizType === "sunburst") {
+    zoomControls.style.display = "flex";
+  } else {
+    zoomControls.style.display = "none";
+  }
+
   // Select the right visualization based on the vizType
   if (vizType === "treemap") {
     renderTreemap(data);
@@ -588,12 +633,28 @@ function renderSunburst(data) {
     .select(visualizationContainer)
     .append("svg")
     .attr("width", width)
-    .attr("height", height)
-    .append("g")
-    .attr("transform", `translate(${width / 2},${height / 2})`);
+    .attr("height", height);
+
+  // Create a group for the sunburst that will be transformed by zoom
+  const sunburstGroup = svg.append("g").attr("transform", `translate(${width / 2},${height / 2})`);
+
+  // Create zoom behavior
+  const zoom = d3
+    .zoom()
+    .scaleExtent([0.5, 10])
+    .on("zoom", function (event) {
+      const { x, y, k } = event.transform;
+      sunburstGroup.attr("transform", `translate(${width / 2 + x},${height / 2 + y}) scale(${k})`);
+    });
+
+  // Store zoom reference for controls
+  currentZoom = zoom;
+
+  // Apply zoom to SVG
+  svg.call(zoom);
 
   // Create paths for each data point
-  svg
+  sunburstGroup
     .selectAll("path")
     .data(root.descendants().filter((d) => d.depth))
     .enter()
@@ -607,6 +668,9 @@ function renderSunburst(data) {
     })
     .attr("d", arc)
     .on("click", function (event, d) {
+      // Stop zoom propagation
+      event.stopPropagation();
+
       // Update details panel
       updateDetailsPanel(d.data);
 
@@ -625,7 +689,7 @@ function renderSunburst(data) {
     });
 
   // Add labels for larger segments
-  svg
+  sunburstGroup
     .selectAll("text")
     .data(
       root

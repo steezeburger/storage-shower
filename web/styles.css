@@ -112,6 +112,26 @@ input[type="radio"] {
   align-items: center;
 }
 
+.zoom-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-left: 20px;
+}
+
+.zoom-controls button {
+  min-width: 35px;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+#zoom-reset-btn {
+  min-width: auto;
+  padding: 6px 12px;
+  font-weight: normal;
+}
+
 #progress-container {
   background-color: var(--panel-bg);
   padding: 15px;

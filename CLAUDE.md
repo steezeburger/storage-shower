@@ -99,7 +99,7 @@ This project uses [just](https://github.com/casey/just) as a command runner. Ava
 - `just lint-html` - Lint only HTML
 - `just lint-css` - Lint only CSS
 - `just lint-fix` - Fix linting issues where possible
-- `just validate` - Format and lint all code
+- `just prepush` - Run all checks before pushing (format, test, lint Go)
 
 ### Testing
 - `just test` or `just t` - Run all tests (backend + web)
