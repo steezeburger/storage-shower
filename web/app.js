@@ -19,6 +19,8 @@ const selectedTypeText = document.getElementById("selected-type");
 const breadcrumbTrail = document.getElementById("breadcrumb-trail");
 const previousScansContainer = document.getElementById("previous-scans-container");
 const previousScansList = document.getElementById("previous-scans-list");
+const colorLegend = document.getElementById("color-legend");
+const legendItems = document.querySelector(".legend-items");
 
 // Application state
 let currentData = null;
@@ -130,6 +132,9 @@ function init() {
 
   // Fetch previous scans
   fetchPreviousScans();
+
+  // Initialize color legend
+  initializeColorLegend();
 
   // Set up keyboard shortcuts
   document.addEventListener("keydown", (e) => {
@@ -932,6 +937,30 @@ function displayPreviousScans() {
   } else {
     previousScansContainer.classList.add("hidden");
   }
+}
+
+// Initialize the color legend
+function initializeColorLegend() {
+  // Clear existing legend items
+  legendItems.innerHTML = "";
+  
+  // Create legend items for each file type
+  Object.entries(typeColors).forEach(([type, color]) => {
+    const legendItem = document.createElement("div");
+    legendItem.className = "legend-item";
+    
+    const colorBox = document.createElement("div");
+    colorBox.className = "legend-color";
+    colorBox.style.backgroundColor = color;
+    
+    const label = document.createElement("span");
+    label.className = "legend-label";
+    label.textContent = type;
+    
+    legendItem.appendChild(colorBox);
+    legendItem.appendChild(label);
+    legendItems.appendChild(legendItem);
+  });
 }
 
 // Initialize the application when the page loads

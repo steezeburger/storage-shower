@@ -10,7 +10,15 @@
       "mcp__browsermcp__browser_navigate",
       "mcp__browsermcp__browser_screenshot",
       "Bash(grep:*)",
-      "mcp__browsermcp__browser_wait"
+      "mcp__browsermcp__browser_wait",
+      "Bash(rg:*)",
+      "mcp__sse-server__browser_navigate",
+      "mcp__sse-server__browser_take_screenshot",
+      "mcp__sse-server__browser_console_messages",
+      "mcp__sse-server__browser_snapshot",
+      "mcp__sse-server__browser_type",
+      "mcp__sse-server__browser_click",
+      "mcp__sse-server__browser_wait_for"
     ],
     "deny": []
   }
