@@ -7,7 +7,7 @@ Storage Shower is a disk space visualization tool that helps users understand wh
 ## Code Structure
 
 - `main.go` - Backend Go server with API endpoints
-- `frontend/` - Frontend web application
+- `web/` - Web application
   - `index.html` - Main HTML structure
   - `app.js` - Frontend JavaScript application
   - `styles.css` - CSS styling
@@ -66,7 +66,67 @@ When creating pull requests:
 
 When implementing new features:
 
-1. Maintain the existing architecture separation (Go backend, JS frontend)
+1. Maintain the existing architecture separation (Go backend, JS web)
 2. Use the existing event-based communication patterns
 3. Follow the established UI/UX patterns
 4. Consider both performance and usability
+
+## Just Commands
+
+This project uses [just](https://github.com/casey/just) as a command runner. Available commands:
+
+### Development
+- `just` or `just --list` - Show all available commands
+- `just run [args]` - Run the application
+- `just debug` - Run with debug mode
+- `just deps` - Install dependencies (Go modules + npm packages)
+
+### Building
+- `just build` - Build the Go binary
+- `just bundle [app_name] [app_version] [app_identifier]` - Build macOS app bundle
+- `just dmg [app_name]` - Create DMG for distribution (builds bundle first)
+- `just zip [app_name]` - Create ZIP for distribution (builds bundle first)
+
+### Code Quality
+- `just format` or `just f` - Format all code (Go + web)
+- `just format --check` - Check formatting without making changes
+- `just lint` or `just l` - Lint all code (Go, JS, HTML, CSS)
+- `just lint-go` - Lint only Go code
+- `just lint-js` - Lint only JavaScript
+- `just lint-html` - Lint only HTML
+- `just lint-css` - Lint only CSS
+- `just lint-fix` - Fix linting issues where possible
+- `just validate` - Format and lint all code
+
+### Testing
+- `just test` or `just t` - Run all tests (backend + web)
+- `just test-backend` - Run only Go tests
+- `just test-web` - Run only web tests
+
+### Utilities
+- `just clean` - Remove build artifacts
+- `just install-linters` - Install required linting tools
+- `just prepush` - Run all checks before pushing (format, test, lint Go)
+
+# Testing Feedback Loop Workflow
+
+When making changes to the web frontend and testing them:
+
+1. **Start the server efficiently**: Use `nohup just run > /dev/null 2>&1 & echo "Server started"` to avoid timeout issues
+2. **Kill existing processes if needed**: Use `pkill -f storage-shower; pkill -f "go run"` to stop any running servers
+3. **After making JavaScript/CSS changes**: Always refresh the browser (`browser_navigate` to the same URL) to pick up the latest changes
+4. **For Go backend changes**: Restart the server completely since Go changes require recompilation
+
+Example workflow:
+```bash
+# Kill any existing server
+pkill -f storage-shower; pkill -f "go run"
+
+# Start server in background 
+nohup just run > /dev/null 2>&1 & echo "Server started"
+
+# Make your changes to web/app.js or web/styles.css
+
+# Refresh browser to test changes
+# (browser_navigate to http://localhost:8080)
+```

@@ -1,0 +1,39 @@
+{
+  "name": "storage-shower",
+  "version": "1.0.0",
+  "description": "Disk space visualization tool",
+  "main": "main.go",
+  "scripts": {
+    "format": "prettier --write \"*.{js,html,css}\" \"tests/**/*.{js,html,css}\"",
+    "format:check": "prettier --check \"*.{js,html,css}\" \"tests/**/*.{js,html,css}\"",
+    "lint": "eslint \"*.js\" \"tests/**/*.js\"",
+    "lint:fix": "eslint --fix \"*.js\" \"tests/**/*.js\"",
+    "lint-html": "htmlhint \"*.html\"",
+    "lint-css": "stylelint \"*.css\"",
+    "lint-css:fix": "stylelint --fix \"*.css\"",
+    "test": "jest --config jest.config.js"
+  },
+  "keywords": [
+    "disk",
+    "storage",
+    "visualization",
+    "treemap",
+    "sunburst"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.22.5",
+    "@babel/eslint-parser": "^7.27.1",
+    "@babel/preset-env": "^7.22.5",
+    "babel-jest": "^29.5.0",
+    "eslint": "^8.43.0",
+    "htmlhint": "^1.1.4",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "prettier": "^2.8.8",
+    "stylelint": "^15.10.1",
+    "stylelint-config-standard": "^34.0.0"
+  }
+}

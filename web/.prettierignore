@@ -1,0 +1,8 @@
+# Ignore CSS files (handled by stylelint)
+*.css
+
+# Generated files
+node_modules/
+coverage/
+dist/
+build/
