@@ -161,13 +161,19 @@ mcp__sse-server__browser_network_requests()  # View all network requests and res
 # 1. Stop existing server
 pkill -f "storage-shower\|go run" 2>/dev/null || true
 
-# 2. Rebuild server with updated embedded files (if web files changed)
+# 2. Run pre-push checks to validate code quality
+just prepush  # Runs format, test, and lint checks
+
+# 3. Rebuild server with updated embedded files (if web files changed)
 go build -o storage-shower . && nohup ./storage-shower > /dev/null 2>&1 & echo "Server rebuilt and started"
 
-# 3. Test the changes using browser automation
+# 4. Test the changes using browser automation
 # - Navigate to http://localhost:8080
 # - Perform user interactions
 # - Take screenshots to verify UI
 # - Test functionality with scans
 # - Verify new features work as expected
+
+# 5. Final validation before committing
+just prepush  # Run again after all changes are complete
 ```
