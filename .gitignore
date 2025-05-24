@@ -72,3 +72,6 @@ yarn-error.log*
 dist/
 build/
 out/
+
+# Claude Code local settings
+.claude/settings.local.json
