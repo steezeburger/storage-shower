@@ -35,7 +35,7 @@ jobs:
         run: just deps
 
       - name: Check formatting
-        run: just --unstable --check format
+        run: just --unstable format --check
 
       - name: Run linters
         run: just lint
