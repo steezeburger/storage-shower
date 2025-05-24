@@ -4,7 +4,7 @@
 
 A disk space visualization tool that helps you understand where your storage is being used.
 
-![Storage Shower Screenshot](images/screen1.png)
+![Storage Shower Screenshot](images/screen2.png)
 
 ## Features
 
